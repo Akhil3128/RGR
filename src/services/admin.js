@@ -1,5 +1,12 @@
 import { supabase } from '../lib/supabase'
 
+// ---------- Admin check ----------
+export async function checkIsAdmin() {
+  const { data, error } = await supabase.rpc('is_admin')
+  if (error) return { isAdmin: false, error }
+  return { isAdmin: Boolean(data), error: null }
+}
+
 // ---------- Products ----------
 export async function getProducts() {
   return supabase.from('products').select('*').order('sort_order', { ascending: true })

@@ -18,6 +18,7 @@ export default function CartDrawer({ open, onClose }) {
   const [customer, setCustomer] = useState(EMPTY_CUSTOMER)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [saveWarning, setSaveWarning] = useState('')
 
   function update(field, value) {
     setCustomer((c) => ({ ...c, [field]: value }))
@@ -35,14 +36,22 @@ export default function CartDrawer({ open, onClose }) {
       return
     }
     setError('')
+    setSaveWarning('')
     setSubmitting(true)
 
-    // Save to Supabase (best effort — never blocks the WhatsApp order).
+    // Save to Supabase before opening WhatsApp.
+    let saveResult = { saved: false, error: null }
     try {
-      const res = await saveOrder({ items, total, customer })
-      if (res.error) console.warn('Order not saved to database:', res.error)
+      saveResult = await saveOrder({ items, total, customer })
+      if (saveResult.error) {
+        setSaveWarning(
+          `WhatsApp opened, but order was NOT saved: ${saveResult.error.message}. Fix Supabase setup, then try again.`,
+        )
+      }
     } catch (err) {
-      console.warn('Order save failed:', err)
+      setSaveWarning(
+        `WhatsApp opened, but order was NOT saved: ${err.message}`,
+      )
     }
 
     const message = buildOrderMessage({ items, total, customer })
@@ -50,9 +59,12 @@ export default function CartDrawer({ open, onClose }) {
     window.open(link, '_blank', 'noopener,noreferrer')
 
     setSubmitting(false)
-    clearCart()
-    setCustomer(EMPTY_CUSTOMER)
-    onClose()
+
+    if (saveResult.saved || !saveResult.error) {
+      clearCart()
+      setCustomer(EMPTY_CUSTOMER)
+      if (!saveResult.error) onClose()
+    }
   }
 
   return (
@@ -222,6 +234,11 @@ export default function CartDrawer({ open, onClose }) {
           <div className="border-t border-gold/30 bg-cream-dark px-4 py-4">
             {error && (
               <p className="mb-2 text-center text-sm text-maroon">{error}</p>
+            )}
+            {saveWarning && (
+              <p className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
+                {saveWarning}
+              </p>
             )}
             <div className="mb-3 flex items-center justify-between">
               <span className="text-sm font-medium text-forest-dark">Total</span>

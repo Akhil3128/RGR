@@ -42,6 +42,9 @@ as $$
   select exists (select 1 from public.admin_users where id = auth.uid());
 $$;
 
+-- Let the app call is_admin() from the browser to verify admin access.
+grant execute on function public.is_admin() to authenticated, anon;
+
 -- ----------------------------------------------------------------------------
 -- products
 -- ----------------------------------------------------------------------------
@@ -160,11 +163,21 @@ create policy "orders insert by anyone"
   on public.orders for insert
   with check (true);
 
-drop policy if exists "orders manage by admin" on public.orders;
-create policy "orders manage by admin"
-  on public.orders for all
+drop policy if exists "orders select by admin" on public.orders;
+create policy "orders select by admin"
+  on public.orders for select
+  using (public.is_admin());
+
+drop policy if exists "orders update by admin" on public.orders;
+create policy "orders update by admin"
+  on public.orders for update
   using (public.is_admin())
   with check (public.is_admin());
+
+drop policy if exists "orders delete by admin" on public.orders;
+create policy "orders delete by admin"
+  on public.orders for delete
+  using (public.is_admin());
 
 -- ----- order_items -----
 drop policy if exists "order_items insert by anyone" on public.order_items;
@@ -172,11 +185,21 @@ create policy "order_items insert by anyone"
   on public.order_items for insert
   with check (true);
 
-drop policy if exists "order_items manage by admin" on public.order_items;
-create policy "order_items manage by admin"
-  on public.order_items for all
+drop policy if exists "order_items select by admin" on public.order_items;
+create policy "order_items select by admin"
+  on public.order_items for select
+  using (public.is_admin());
+
+drop policy if exists "order_items update by admin" on public.order_items;
+create policy "order_items update by admin"
+  on public.order_items for update
   using (public.is_admin())
   with check (public.is_admin());
+
+drop policy if exists "order_items delete by admin" on public.order_items;
+create policy "order_items delete by admin"
+  on public.order_items for delete
+  using (public.is_admin());
 
 -- ----- inventory -----
 drop policy if exists "inventory manage by admin" on public.inventory;

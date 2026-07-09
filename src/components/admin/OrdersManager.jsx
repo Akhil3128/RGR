@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getOrders, updateOrder } from '../../services/admin'
+import { useAuth } from '../../context/AuthContext'
 import { formatINR, productLabel } from '../../utils/format'
 import {
   ORDER_STATUSES,
@@ -20,6 +21,7 @@ function Badge({ value }) {
 }
 
 export default function OrdersManager() {
+  const { isAdmin } = useAuth()
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -71,7 +73,23 @@ export default function OrdersManager() {
       )}
 
       {orders.length === 0 ? (
-        <p className="text-forest">No orders yet.</p>
+        <div className="rounded-xl border border-gold/40 bg-white p-5 text-sm text-forest-dark">
+          <p className="font-medium text-maroon">No orders yet.</p>
+          {!isAdmin ? (
+            <p className="mt-2">
+              Your account may not be set up as admin. Add your user to{' '}
+              <code className="rounded bg-cream-dark px-1">admin_users</code> in
+              Supabase — see <code>supabase/fix-admin-orders.sql</code>.
+            </p>
+          ) : (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-forest/80">
+              <li>Place a test order from the home page (Cart → Order on WhatsApp).</li>
+              <li>Make sure <code>.env</code> has your Supabase URL and anon key.</li>
+              <li>Confirm <code>supabase/schema.sql</code> was run in SQL Editor.</li>
+              <li>Click <strong>Refresh</strong> after placing an order.</li>
+            </ul>
+          )}
+        </div>
       ) : (
         <div className="space-y-3">
           {orders.map((o) => {
