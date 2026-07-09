@@ -67,6 +67,10 @@ create trigger trg_products_updated
   before update on public.products
   for each row execute function public.set_updated_at();
 
+-- Prevent duplicate products if seed SQL is run more than once
+create unique index if not exists products_name_size_unique
+  on public.products (name, coalesce(size, ''));
+
 -- ----------------------------------------------------------------------------
 -- orders
 -- ----------------------------------------------------------------------------
@@ -436,27 +440,33 @@ grant execute on function public.admin_update_order_status(uuid, text) to authen
 -- ============================================================================
 -- Seed products (matches src/data/sampleProducts.js)
 -- ============================================================================
-insert into public.products (name, category, size, price, net_rate, is_available, sort_order) values
-  ('Kova',                 'Sweets', '200 gm',   140, 95,  true, 1),
-  ('Kova',                 'Sweets', '250 gm',   175, 118, true, 2),
-  ('Kova',                 'Sweets', '500 gm',   350, 235, true, 3),
-  ('Kova',                 'Sweets', '1 Kg',     700, 470, true, 4),
-  ('Sunnundalu',           'Sweets', '200 gm',   140, 95,  true, 5),
-  ('Sunnundalu',           'Sweets', '250 gm',   175, 118, true, 6),
-  ('Sunnundalu',           'Sweets', '500 gm',   350, 235, true, 7),
-  ('Sunnundalu',           'Sweets', '1 Kg',     700, 470, true, 8),
-  ('Plain Putharekulu',    'Sweets', '5 Pieces', 150, 100, true, 9),   -- price editable from admin
-  ('Dryfruit Putharekulu', 'Sweets', '5 Pieces', 200, 135, true, 10),
-  ('Jantikalu Hot',        'Snacks', '200 gm',   100, 65,  true, 11),
-  ('Boondhi Hot',          'Snacks', '200 gm',   100, 65,  true, 12),
-  ('Paneer',               'Dairy',  '250 gm',   145, 100, true, 13),
-  ('Paneer',               'Dairy',  '500 gm',   290, 200, true, 14),
-  ('Paneer',               'Dairy',  '1 Kg',     580, 400, true, 15),
-  ('Cow Ghee',             'Dairy',  '1/2 Kg',   390, 300, true, 16),
-  ('Cow Ghee',             'Dairy',  '1 Kg',     780, 600, true, 17),
-  ('Buffalo Ghee',         'Dairy',  '1/2 Kg',   390, 300, true, 18),
-  ('Buffalo Ghee',         'Dairy',  '1 Kg',     780, 600, true, 19)
-on conflict do nothing;
+insert into public.products (name, category, size, price, net_rate, is_available, sort_order)
+select v.name, v.category, v.size, v.price, v.net_rate, v.is_available, v.sort_order
+from (values
+  ('Kova',                 'Sweets', '200 gm',   140::numeric, 95::numeric,  true, 1),
+  ('Kova',                 'Sweets', '250 gm',   175::numeric, 118::numeric, true, 2),
+  ('Kova',                 'Sweets', '500 gm',   350::numeric, 235::numeric, true, 3),
+  ('Kova',                 'Sweets', '1 Kg',     700::numeric, 470::numeric, true, 4),
+  ('Sunnundalu',           'Sweets', '200 gm',   140::numeric, 95::numeric,  true, 5),
+  ('Sunnundalu',           'Sweets', '250 gm',   175::numeric, 118::numeric, true, 6),
+  ('Sunnundalu',           'Sweets', '500 gm',   350::numeric, 235::numeric, true, 7),
+  ('Sunnundalu',           'Sweets', '1 Kg',     700::numeric, 470::numeric, true, 8),
+  ('Plain Putharekulu',    'Sweets', '5 Pieces', 150::numeric, 100::numeric, true, 9),
+  ('Dryfruit Putharekulu', 'Sweets', '5 Pieces', 200::numeric, 135::numeric, true, 10),
+  ('Jantikalu Hot',        'Snacks', '200 gm',   100::numeric, 65::numeric,  true, 11),
+  ('Boondhi Hot',          'Snacks', '200 gm',   100::numeric, 65::numeric,  true, 12),
+  ('Paneer',               'Dairy',  '250 gm',   145::numeric, 100::numeric, true, 13),
+  ('Paneer',               'Dairy',  '500 gm',   290::numeric, 200::numeric, true, 14),
+  ('Paneer',               'Dairy',  '1 Kg',     580::numeric, 400::numeric, true, 15),
+  ('Cow Ghee',             'Dairy',  '1/2 Kg',   390::numeric, 300::numeric, true, 16),
+  ('Cow Ghee',             'Dairy',  '1 Kg',     780::numeric, 600::numeric, true, 17),
+  ('Buffalo Ghee',         'Dairy',  '1/2 Kg',   390::numeric, 300::numeric, true, 18),
+  ('Buffalo Ghee',         'Dairy',  '1 Kg',     780::numeric, 600::numeric, true, 19)
+) as v(name, category, size, price, net_rate, is_available, sort_order)
+where not exists (
+  select 1 from public.products p
+  where p.name = v.name and coalesce(p.size, '') = coalesce(v.size, '')
+);
 
 -- Create an empty inventory row for every product (safe to re-run).
 insert into public.inventory (product_id)

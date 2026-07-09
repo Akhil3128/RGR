@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { dedupeProducts } from './products'
 
 // ---------- Admin check ----------
 export async function checkIsAdmin() {
@@ -9,7 +10,11 @@ export async function checkIsAdmin() {
 
 // ---------- Products ----------
 export async function getProducts() {
-  return supabase.from('products').select('*').order('sort_order', { ascending: true })
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('sort_order', { ascending: true })
+  return { data: dedupeProducts(data ?? []), error }
 }
 
 export async function createProduct(product) {
