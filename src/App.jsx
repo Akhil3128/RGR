@@ -6,7 +6,7 @@ import CustomerForm from './components/CustomerForm'
 import ProductCard from './components/ProductCard'
 import { sampleProducts } from './data/sampleProducts'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
-import { DISPLAY_PHONE, formatCurrency, getCartTotal } from './utils/order'
+import { DISPLAY_PHONE, getCartTotal } from './utils/order'
 
 const initialCustomer = {
   name: '',
@@ -23,6 +23,8 @@ export default function App() {
   const [saveMessage, setSaveMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [session, setSession] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [checkingAdmin, setCheckingAdmin] = useState(false)
   const [view, setView] = useState(window.location.pathname.startsWith('/admin') ? 'admin' : 'customer')
 
   const availableProducts = useMemo(
@@ -54,6 +56,27 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => setSession(newSession))
     return () => listener.subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    async function verifyAdmin() {
+      if (!isSupabaseConfigured || !session?.user?.id) {
+        setIsAdmin(false)
+        return
+      }
+
+      setCheckingAdmin(true)
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('user_id')
+        .eq('user_id', session.user.id)
+        .maybeSingle()
+
+      setIsAdmin(Boolean(data && !error))
+      setCheckingAdmin(false)
+    }
+
+    verifyAdmin()
+  }, [session])
 
   function addToCart(product) {
     setCartItems((current) => {
@@ -154,11 +177,39 @@ export default function App() {
   async function logoutAdmin() {
     await supabase.auth.signOut()
     setSession(null)
+    setIsAdmin(false)
   }
 
   if (view === 'admin') {
     if (!session) {
       return <AdminLogin isConfigured={isSupabaseConfigured} onLogin={loginAdmin} />
+    }
+
+    if (checkingAdmin) {
+      return (
+        <main className="grid min-h-screen place-items-center bg-cream px-4">
+          <div className="rounded-3xl bg-white p-6 text-center shadow-soft">
+            <p className="font-display text-3xl font-bold text-maroon-dark">Checking admin access...</p>
+          </div>
+        </main>
+      )
+    }
+
+    if (!isAdmin) {
+      return (
+        <main className="grid min-h-screen place-items-center bg-cream px-4">
+          <div className="max-w-md rounded-3xl border border-gold/25 bg-white p-6 text-center shadow-soft">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gold">Admin Access</p>
+            <h1 className="mt-2 font-display text-4xl font-bold text-maroon-dark">Not authorized</h1>
+            <p className="mt-3 text-sm leading-6 text-maroon-dark/80">
+              This account is not listed in the Supabase admin_users table.
+            </p>
+            <button type="button" onClick={logoutAdmin} className="mt-6 rounded-full bg-maroon px-6 py-3 font-bold text-white">
+              Logout
+            </button>
+          </div>
+        </main>
+      )
     }
 
     return <AdminDashboard supabase={supabase} onLogout={logoutAdmin} onProductsChanged={loadProducts} />

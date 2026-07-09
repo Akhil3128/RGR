@@ -96,7 +96,7 @@ alter table public.admin_users enable row level security;
 drop policy if exists "Anyone can read available products" on public.products;
 create policy "Anyone can read available products"
 on public.products for select
-using (available = true or auth.role() = 'authenticated');
+using (available = true or exists (select 1 from public.admin_users where user_id = auth.uid()));
 
 drop policy if exists "Admins can manage products" on public.products;
 create policy "Admins can manage products"
