@@ -74,9 +74,18 @@ export default function InventoryManager() {
 
   return (
     <div>
-      <h2 className="mb-1 font-heading text-xl font-bold text-maroon">Inventory</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-heading text-xl font-bold text-maroon">Inventory</h2>
+        <button onClick={load} className="btn-gold px-3 py-1.5 text-sm">
+          Refresh
+        </button>
+      </div>
       <p className="mb-4 text-sm text-forest/70">
-        Closing Stock = Opening Stock + Stock Received − Sales
+        Closing Stock = Opening Stock + Stock Received − Sales.
+        <span className="mt-1 block text-maroon/80">
+          Sales auto-increase when customers place orders. Set Opening Stock and
+          Stock Received manually, then click Refresh after new orders.
+        </span>
       </p>
 
       {error && (
