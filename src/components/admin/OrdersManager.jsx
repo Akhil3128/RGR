@@ -37,6 +37,14 @@ export default function OrdersManager() {
 
   useEffect(() => {
     load()
+    // Auto-refresh so new website orders appear without manual refresh.
+    const interval = setInterval(load, 15000)
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
   }, [])
 
   async function changeStatus(order, status) {

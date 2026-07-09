@@ -232,36 +232,87 @@ grant all on public.admin_users to authenticated;
 -- ============================================================================
 -- Auto-update inventory when a customer places an order
 -- ----------------------------------------------------------------------------
--- When order_items are inserted, increase inventory.sales by the quantity.
--- Closing stock then auto-recalculates: opening + received - sales
--- Runs as security definer so website visitors (anon) don't need inventory access.
+-- Uses place_order() RPC so order + items + inventory update atomically.
+-- The old order_items trigger is NOT used (it could block saves on error).
 -- ============================================================================
-create or replace function public.apply_inventory_sale()
-returns trigger
+create or replace function public.place_order(
+  p_order_id uuid,
+  p_customer_name text,
+  p_customer_phone text,
+  p_order_type text,
+  p_address text,
+  p_notes text,
+  p_total_amount numeric,
+  p_items jsonb
+)
+returns uuid
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  item jsonb;
+  pid uuid;
+  qty integer;
 begin
-  if new.product_id is not null then
-    update public.inventory
-    set sales = sales + new.quantity
-    where product_id = new.product_id;
-
-    if not found then
-      insert into public.inventory (product_id, sales)
-      values (new.product_id, new.quantity);
-    end if;
+  if p_order_id is null then
+    p_order_id := gen_random_uuid();
   end if;
-  return new;
+
+  insert into public.orders (
+    id, customer_name, customer_phone, order_type, address, notes,
+    total_amount, status, payment_status
+  ) values (
+    p_order_id,
+    p_customer_name,
+    p_customer_phone,
+    p_order_type,
+    nullif(trim(coalesce(p_address, '')), ''),
+    nullif(trim(coalesce(p_notes, '')), ''),
+    p_total_amount,
+    'New',
+    'Pending'
+  );
+
+  for item in select * from jsonb_array_elements(coalesce(p_items, '[]'::jsonb))
+  loop
+    pid := case
+      when item->>'product_id' is null or item->>'product_id' = '' then null
+      else (item->>'product_id')::uuid
+    end;
+    qty := greatest(coalesce((item->>'quantity')::integer, 1), 1);
+
+    insert into public.order_items (
+      order_id, product_id, product_name, size, unit_price, quantity, line_total
+    ) values (
+      p_order_id,
+      pid,
+      coalesce(item->>'product_name', 'Item'),
+      nullif(item->>'size', ''),
+      coalesce((item->>'unit_price')::numeric, 0),
+      qty,
+      coalesce((item->>'line_total')::numeric, 0)
+    );
+
+    if pid is not null then
+      update public.inventory
+      set sales = sales + qty
+      where product_id = pid;
+
+      if not found then
+        insert into public.inventory (product_id, sales)
+        values (pid, qty);
+      end if;
+    end if;
+  end loop;
+
+  return p_order_id;
 end;
 $$;
 
-drop trigger if exists trg_order_items_inventory_sale on public.order_items;
-create trigger trg_order_items_inventory_sale
-  after insert on public.order_items
-  for each row
-  execute function public.apply_inventory_sale();
+grant execute on function public.place_order(
+  uuid, text, text, text, text, text, numeric, jsonb
+) to anon, authenticated;
 
 -- When an order is cancelled, put stock back (reduce sales).
 create or replace function public.revert_inventory_on_cancel()

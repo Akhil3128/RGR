@@ -3,27 +3,19 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// Save an order (and its items) to Supabase.
-// Returns { saved, error }. When Supabase is not configured we simply skip
-// saving so the WhatsApp flow still works.
-export async function saveOrder({ items, total, customer }) {
-  if (!isSupabaseConfigured) {
-    return {
-      saved: false,
-      error: {
-        message:
-          'Supabase is not connected. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file and restart npm run dev.',
-      },
-    }
-  }
+function buildItemsPayload(items) {
+  return items.map((it) => ({
+    product_id: UUID_RE.test(String(it.id)) ? it.id : null,
+    product_name: it.name,
+    size: it.size || '',
+    unit_price: Number(it.price),
+    quantity: Number(it.quantity),
+    line_total: Number(it.price) * Number(it.quantity),
+  }))
+}
 
-  // Generate the id on the client so we don't need SELECT permission for the
-  // anonymous customer (RLS only allows anon to INSERT, not read orders).
-  const orderId =
-    typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : undefined
-
+// Fallback: direct table inserts (older Supabase setups without place_order RPC).
+async function saveOrderDirect({ orderId, items, total, customer }) {
   const { error: orderError } = await supabase.from('orders').insert({
     id: orderId,
     customer_name: customer.name,
@@ -35,18 +27,16 @@ export async function saveOrder({ items, total, customer }) {
     status: 'New',
     payment_status: 'Pending',
   })
-
   if (orderError) return { saved: false, error: orderError }
 
-  const orderItems = items.map((it) => ({
+  const orderItems = buildItemsPayload(items).map((it) => ({
     order_id: orderId,
-    // Only link to products table when the id is a real UUID (live data).
-    product_id: UUID_RE.test(String(it.id)) ? it.id : null,
-    product_name: it.name,
-    size: it.size,
-    unit_price: it.price,
+    product_id: it.product_id,
+    product_name: it.product_name,
+    size: it.size || null,
+    unit_price: it.unit_price,
     quantity: it.quantity,
-    line_total: it.price * it.quantity,
+    line_total: it.line_total,
   }))
 
   const { error: itemsError } = await supabase
@@ -54,6 +44,56 @@ export async function saveOrder({ items, total, customer }) {
     .insert(orderItems)
 
   if (itemsError) return { saved: false, error: itemsError }
-
   return { saved: true, error: null, orderId }
+}
+
+// Save an order (and its items) to Supabase.
+// Prefers the place_order RPC (atomic: order + items + inventory together).
+export async function saveOrder({ items, total, customer }) {
+  if (!isSupabaseConfigured) {
+    return {
+      saved: false,
+      error: {
+        message:
+          'Supabase is not connected. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file and restart npm run dev.',
+      },
+    }
+  }
+
+  if (!items?.length) {
+    return { saved: false, error: { message: 'Cart is empty.' } }
+  }
+
+  const orderId = crypto.randomUUID()
+  const payload = {
+    p_order_id: orderId,
+    p_customer_name: customer.name.trim(),
+    p_customer_phone: customer.phone.trim(),
+    p_order_type: customer.orderType,
+    p_address: customer.orderType === 'delivery' ? customer.address : null,
+    p_notes: customer.notes || null,
+    p_total_amount: total,
+    p_items: buildItemsPayload(items),
+  }
+
+  // Try atomic RPC first (recommended — also updates inventory).
+  const { data: rpcId, error: rpcError } = await supabase.rpc(
+    'place_order',
+    payload,
+  )
+
+  if (!rpcError) {
+    return { saved: true, error: null, orderId: rpcId || orderId }
+  }
+
+  // RPC missing? Fall back to direct inserts (run supabase/fix-orders-complete.sql).
+  const isMissingRpc =
+    rpcError.message?.includes('place_order') ||
+    rpcError.code === 'PGRST202'
+
+  if (!isMissingRpc) {
+    return { saved: false, error: rpcError }
+  }
+
+  return saveOrderDirect({ orderId, items, total, customer })
 }

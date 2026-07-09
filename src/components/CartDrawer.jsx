@@ -43,15 +43,8 @@ export default function CartDrawer({ open, onClose }) {
     let saveResult = { saved: false, error: null }
     try {
       saveResult = await saveOrder({ items, total, customer })
-      if (saveResult.error) {
-        setSaveWarning(
-          `WhatsApp will open, but order was NOT saved to admin: ${saveResult.error.message}`,
-        )
-      }
     } catch (err) {
-      setSaveWarning(
-        `WhatsApp will open, but order was NOT saved to admin: ${err.message}`,
-      )
+      saveResult = { saved: false, error: { message: err.message } }
     }
 
     const message = buildOrderMessage({ items, total, customer })
@@ -66,7 +59,7 @@ export default function CartDrawer({ open, onClose }) {
       onClose()
     } else if (saveResult.error) {
       setSaveWarning(
-        `WhatsApp opened, but order was NOT saved to admin: ${saveResult.error.message}`,
+        `WhatsApp opened, but order was NOT saved: ${saveResult.error.message}. Run supabase/fix-orders-complete.sql in Supabase.`,
       )
     }
   }
