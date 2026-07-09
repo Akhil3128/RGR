@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cream text-forest-dark font-body antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading;
+  }
+}
+
+@layer components {
+  /* Primary maroon button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-maroon px-5 py-2.5
+      font-medium text-cream shadow-soft transition
+      hover:bg-maroon-light active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Gold outline button */
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-gold
+      bg-transparent px-5 py-2.5 font-medium text-maroon transition
+      hover:bg-gold hover:text-white active:scale-[0.98];
+  }
+
+  /* WhatsApp green button */
+  .btn-whatsapp {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5
+      font-semibold text-white shadow-soft transition hover:bg-[#1EBE5A] active:scale-[0.98]
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .card {
+    @apply rounded-2xl border border-gold/30 bg-white shadow-card;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-gold/40 bg-cream/60 px-4 py-2.5 text-sm text-forest-dark
+      outline-none transition placeholder:text-forest/40 focus:border-gold focus:ring-2 focus:ring-gold/30;
+  }
+
+  .label {
+    @apply mb-1 block text-sm font-medium text-maroon;
+  }
+
+  .section-title {
+    @apply text-3xl font-bold text-maroon sm:text-4xl;
+  }
+
+  /* Decorative traditional divider */
+  .divider {
+    @apply mx-auto mt-3 h-1 w-24 rounded-full bg-gradient-to-r from-gold via-maroon to-gold;
+  }
+}
