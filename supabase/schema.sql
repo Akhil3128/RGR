@@ -215,6 +215,21 @@ create policy "admin_users read by admin"
   using (public.is_admin());
 
 -- ============================================================================
+-- Table permissions (required for website visitors to place orders)
+-- ============================================================================
+grant usage on schema public to anon, authenticated;
+
+grant select on public.products to anon, authenticated;
+grant insert on public.orders to anon, authenticated;
+grant insert on public.order_items to anon, authenticated;
+
+grant all on public.products to authenticated;
+grant all on public.orders to authenticated;
+grant all on public.order_items to authenticated;
+grant all on public.inventory to authenticated;
+grant all on public.admin_users to authenticated;
+
+-- ============================================================================
 -- Seed products (matches src/data/sampleProducts.js)
 -- ============================================================================
 insert into public.products (name, category, size, price, net_rate, is_available, sort_order) values

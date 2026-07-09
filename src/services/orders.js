@@ -8,7 +8,13 @@ const UUID_RE =
 // saving so the WhatsApp flow still works.
 export async function saveOrder({ items, total, customer }) {
   if (!isSupabaseConfigured) {
-    return { saved: false, error: null }
+    return {
+      saved: false,
+      error: {
+        message:
+          'Supabase is not connected. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file and restart npm run dev.',
+      },
+    }
   }
 
   // Generate the id on the client so we don't need SELECT permission for the
