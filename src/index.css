@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-cream font-body text-forest-dark antialiased;
+  }
+}
+
+@layer components {
+  /* Gold ornamental divider used under section headings */
+  .gold-divider {
+    @apply mx-auto mt-3 flex items-center justify-center gap-2 text-gold;
+  }
+  .gold-divider::before,
+  .gold-divider::after {
+    content: '';
+    @apply h-px w-12 bg-gold;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-maroon px-5 py-2.5 font-medium text-cream shadow-card transition hover:bg-maroon-dark disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-whatsapp {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-[#25D366] px-5 py-2.5 font-semibold text-white shadow-card transition hover:bg-[#1DA851] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-maroon px-5 py-2.5 font-medium text-maroon transition hover:bg-maroon hover:text-cream;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-gold/40 bg-white px-3 py-2.5 text-sm text-forest-dark outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/30;
+  }
+
+  .card {
+    @apply rounded-xl border border-gold/30 bg-white shadow-card;
+  }
+}
