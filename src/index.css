@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  --color-maroon: #7B1E3A;
+  --color-maroon-dark: #5C1529;
+  --color-maroon-light: #9B2A4A;
+  --color-forest: #1B4332;
+  --color-forest-dark: #0D2818;
+  --color-forest-light: #2D6A4F;
+  --color-gold: #C9A227;
+  --color-gold-light: #E8C547;
+  --color-cream: #FFF8F0;
+  --color-cream-dark: #F5E6D3;
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-body: "Poppins", system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-cream);
+  color: #2d2d2d;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Traditional border pattern */
+.pattern-border {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--color-gold) 0,
+    var(--color-gold) 2px,
+    transparent 2px,
+    transparent 8px
+  );
+  background-size: 100% 2px;
+  background-position: bottom;
+  background-repeat: no-repeat;
+}
+
+.card-shadow {
+  box-shadow: 0 4px 20px rgba(123, 30, 58, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.card-shadow:hover {
+  box-shadow: 0 8px 30px rgba(123, 30, 58, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
