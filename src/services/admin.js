@@ -53,6 +53,36 @@ export async function updateOrder(id, changes) {
   return supabase.from('orders').update(changes).eq('id', id).select().single()
 }
 
+// Update order status and deduct inventory when marked Delivered / Completed.
+// Uses admin_update_order_status RPC (safe: deducts only once per order).
+export async function updateOrderStatus(id, status) {
+  const { data, error } = await supabase.rpc('admin_update_order_status', {
+    p_order_id: id,
+    p_new_status: status,
+  })
+
+  if (error) {
+    // Fallback if migration not run yet — status only, no inventory.
+    if (error.message?.includes('admin_update_order_status') || error.code === 'PGRST202') {
+      const result = await updateOrder(id, { status })
+      return {
+        data: result.data
+          ? {
+              success: true,
+              message:
+                'Status updated. Run supabase/migration-inventory-on-delivery.sql to enable inventory on delivery.',
+              warnings: [],
+            }
+          : null,
+        error: result.error,
+      }
+    }
+    return { data: null, error }
+  }
+
+  return { data, error: null }
+}
+
 // ---------- Dashboard stats ----------
 // Pulls the data needed to compute all dashboard cards.
 export async function getDashboardData() {

@@ -80,9 +80,11 @@ create table if not exists public.orders (
   notes          text,
   total_amount   numeric(10, 2) not null default 0,
   status         text not null default 'New'
-                   check (status in ('New','Confirmed','Preparing','Ready','Delivered','Cancelled')),
+                   check (status in ('New','Confirmed','Preparing','Ready','Delivered','Completed','Cancelled')),
   payment_status text not null default 'Pending'
                    check (payment_status in ('Pending','Paid','Partial')),
+  inventory_updated boolean not null default false,
+  delivered_at   timestamptz,
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
@@ -230,10 +232,8 @@ grant all on public.inventory to authenticated;
 grant all on public.admin_users to authenticated;
 
 -- ============================================================================
--- Auto-update inventory when a customer places an order
--- ----------------------------------------------------------------------------
--- Uses place_order() RPC so order + items + inventory update atomically.
--- The old order_items trigger is NOT used (it could block saves on error).
+-- place_order: save customer order (NO inventory change here)
+-- Inventory is deducted later when admin marks Delivered / Completed.
 -- ============================================================================
 create or replace function public.place_order(
   p_order_id uuid,
@@ -293,17 +293,6 @@ begin
       qty,
       coalesce((item->>'line_total')::numeric, 0)
     );
-
-    if pid is not null then
-      update public.inventory
-      set sales = sales + qty
-      where product_id = pid;
-
-      if not found then
-        insert into public.inventory (product_id, sales)
-        values (pid, qty);
-      end if;
-    end if;
   end loop;
 
   return p_order_id;
@@ -314,31 +303,135 @@ grant execute on function public.place_order(
   uuid, text, text, text, text, text, numeric, jsonb
 ) to anon, authenticated;
 
--- When an order is cancelled, put stock back (reduce sales).
-create or replace function public.revert_inventory_on_cancel()
-returns trigger
+-- ============================================================================
+-- admin_update_order_status: update status + deduct inventory on delivery
+-- ----------------------------------------------------------------------------
+-- Deducts inventory ONCE when status becomes Delivered or Completed.
+-- Restores inventory if a deducted order is Cancelled.
+-- ============================================================================
+create or replace function public.admin_update_order_status(
+  p_order_id uuid,
+  p_new_status text
+)
+returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  ord record;
+  item record;
+  inv record;
+  closing numeric;
+  warnings text[] := '{}';
+  should_deduct boolean;
+  should_revert boolean;
 begin
-  if old.status is distinct from new.status and new.status = 'Cancelled' then
-    update public.inventory i
-    set sales = greatest(0, i.sales - oi.quantity)
-    from public.order_items oi
-    where oi.order_id = new.id
-      and oi.product_id is not null
-      and i.product_id = oi.product_id;
+  if not public.is_admin() then
+    return jsonb_build_object('success', false, 'message', 'Not authorized');
   end if;
-  return new;
+
+  select * into ord from public.orders where id = p_order_id for update;
+  if not found then
+    return jsonb_build_object('success', false, 'message', 'Order not found');
+  end if;
+
+  should_deduct := p_new_status in ('Delivered', 'Completed')
+    and not coalesce(ord.inventory_updated, false);
+
+  should_revert := p_new_status = 'Cancelled'
+    and coalesce(ord.inventory_updated, false);
+
+  if should_deduct then
+    for item in select * from public.order_items where order_id = p_order_id
+    loop
+      if item.product_id is not null then
+        select * into inv from public.inventory where product_id = item.product_id;
+        if found then
+          closing := inv.opening_stock + inv.stock_received - inv.sales;
+          if closing < item.quantity then
+            warnings := array_append(
+              warnings,
+              format('%s (%s): only %s in stock, deducting %s',
+                item.product_name, coalesce(item.size, ''), closing, item.quantity)
+            );
+          end if;
+          update public.inventory
+          set sales = sales + item.quantity
+          where product_id = item.product_id;
+        else
+          insert into public.inventory (product_id, sales)
+          values (item.product_id, item.quantity);
+          warnings := array_append(
+            warnings,
+            format('%s: inventory row created, sales set to %s', item.product_name, item.quantity)
+          );
+        end if;
+      else
+        warnings := array_append(
+          warnings,
+          format('%s: no product link — inventory not updated', item.product_name)
+        );
+      end if;
+    end loop;
+
+    update public.orders
+    set status = p_new_status,
+        inventory_updated = true,
+        delivered_at = coalesce(delivered_at, now())
+    where id = p_order_id;
+
+    return jsonb_build_object(
+      'success', true,
+      'message', 'Inventory updated successfully',
+      'inventory_deducted', true,
+      'warnings', to_jsonb(warnings)
+    );
+  end if;
+
+  if should_revert then
+    for item in select * from public.order_items where order_id = p_order_id
+    loop
+      if item.product_id is not null then
+        update public.inventory
+        set sales = greatest(0, sales - item.quantity)
+        where product_id = item.product_id;
+      end if;
+    end loop;
+
+    update public.orders
+    set status = p_new_status,
+        inventory_updated = false,
+        delivered_at = null
+    where id = p_order_id;
+
+    return jsonb_build_object(
+      'success', true,
+      'message', 'Order cancelled — inventory restored',
+      'inventory_deducted', false,
+      'warnings', '[]'::jsonb
+    );
+  end if;
+
+  -- Normal status change (no inventory change).
+  update public.orders
+  set status = p_new_status,
+      delivered_at = case
+        when p_new_status in ('Delivered', 'Completed') then coalesce(delivered_at, now())
+        else delivered_at
+      end
+  where id = p_order_id;
+
+  return jsonb_build_object(
+    'success', true,
+    'message', 'Order status updated',
+    'inventory_deducted', false,
+    'warnings', '[]'::jsonb
+  );
 end;
 $$;
 
-drop trigger if exists trg_orders_revert_inventory on public.orders;
-create trigger trg_orders_revert_inventory
-  after update of status on public.orders
-  for each row
-  execute function public.revert_inventory_on_cancel();
+grant execute on function public.admin_update_order_status(uuid, text) to authenticated;
 
 -- ============================================================================
 -- Seed products (matches src/data/sampleProducts.js)
