@@ -88,7 +88,9 @@ export default function OrdersManager() {
       setWarning(warnList.join(' · '))
     }
 
-    if (INVENTORY_DEDUCT_STATUSES.includes(status) && data?.inventory_deducted) {
+    if (data?.inventory_reverted) {
+      setSuccess('Inventory restored — stock returned.')
+    } else if (INVENTORY_DEDUCT_STATUSES.includes(status) && data?.inventory_deducted) {
       setSuccess('Inventory updated successfully.')
     } else if (data?.message) {
       setSuccess(data.message)

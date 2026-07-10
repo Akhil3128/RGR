@@ -314,8 +314,9 @@ grant execute on function public.place_order(
 -- ============================================================================
 -- admin_update_order_status: update status + deduct inventory on delivery
 -- ----------------------------------------------------------------------------
--- Deducts inventory ONCE when status becomes Delivered or Completed.
--- Restores inventory if a deducted order is Cancelled.
+-- Deducts inventory when status becomes Delivered or Completed (once).
+-- Restores inventory when leaving Delivered/Completed (e.g. mistaken change
+-- back to New, Confirmed, or Cancelled).
 -- ============================================================================
 create or replace function public.admin_update_order_status(
   p_order_id uuid,
@@ -334,6 +335,7 @@ declare
   warnings text[] := '{}';
   should_deduct boolean;
   should_revert boolean;
+  was_delivered boolean;
 begin
   if not public.is_admin() then
     return jsonb_build_object('success', false, 'message', 'Not authorized');
@@ -344,11 +346,15 @@ begin
     return jsonb_build_object('success', false, 'message', 'Order not found');
   end if;
 
+  was_delivered := ord.status in ('Delivered', 'Completed');
+
+  -- Deduct only when moving TO Delivered/Completed and not yet deducted.
   should_deduct := p_new_status in ('Delivered', 'Completed')
     and not coalesce(ord.inventory_updated, false);
 
-  should_revert := p_new_status = 'Cancelled'
-    and coalesce(ord.inventory_updated, false);
+  -- Restore when stock was deducted but admin moves AWAY from Delivered/Completed.
+  should_revert := coalesce(ord.inventory_updated, false)
+    and p_new_status not in ('Delivered', 'Completed');
 
   if should_deduct then
     for item in select * from public.order_items where order_id = p_order_id
@@ -393,6 +399,7 @@ begin
       'success', true,
       'message', 'Inventory updated successfully',
       'inventory_deducted', true,
+      'inventory_reverted', false,
       'warnings', to_jsonb(warnings)
     );
   end if;
@@ -415,17 +422,19 @@ begin
 
     return jsonb_build_object(
       'success', true,
-      'message', 'Order cancelled — inventory restored',
+      'message', 'Inventory restored — stock returned',
       'inventory_deducted', false,
+      'inventory_reverted', true,
       'warnings', '[]'::jsonb
     );
   end if;
 
-  -- Normal status change (no inventory change).
+  -- Normal status change (e.g. Delivered → Completed, or New → Confirmed).
   update public.orders
   set status = p_new_status,
       delivered_at = case
         when p_new_status in ('Delivered', 'Completed') then coalesce(delivered_at, now())
+        when was_delivered and p_new_status not in ('Delivered', 'Completed') then null
         else delivered_at
       end
   where id = p_order_id;
@@ -434,6 +443,7 @@ begin
     'success', true,
     'message', 'Order status updated',
     'inventory_deducted', false,
+    'inventory_reverted', false,
     'warnings', '[]'::jsonb
   );
 end;
