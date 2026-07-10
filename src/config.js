@@ -11,9 +11,9 @@ export const BUSINESS = {
 export const WHATSAPP_NUMBER =
   import.meta.env.VITE_WHATSAPP_NUMBER || BUSINESS.phoneRaw
 
-// UPI payment — set VITE_UPI_ID in .env or replace the placeholder below.
+// UPI payment — override via VITE_UPI_ID in .env if needed.
 export const UPI = {
-  id: import.meta.env.VITE_UPI_ID || 'ENTER_UPI_ID_HERE',
+  id: import.meta.env.VITE_UPI_ID || '8179537895@ybl',
   name: import.meta.env.VITE_UPI_NAME || BUSINESS.name,
 }
 
