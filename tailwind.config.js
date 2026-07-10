@@ -24,7 +24,9 @@ export default {
           dark: '#F8EFD8',
         },
         beige: '#F8EFD8',
-        ink: '#2B1B12',
+        ink: {
+          DEFAULT: '#2B1B12',
+        },
       },
       fontFamily: {
         heading: ['"Playfair Display"', 'Georgia', 'serif'],
