@@ -185,10 +185,21 @@ export default function OrdersManager() {
                     </p>
                     <div className="mt-1 flex flex-wrap justify-end gap-1">
                       <Badge value={o.status} />
+                      {o.payment_method && (
+                        <Badge value={o.payment_method} />
+                      )}
                       <Badge value={o.payment_status} />
                     </div>
                   </div>
                 </div>
+
+                {INVENTORY_DEDUCT_STATUSES.includes(o.status) &&
+                  o.payment_status !== 'Paid' && (
+                  <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    Payment not marked as Paid — please verify before closing
+                    this order.
+                  </div>
+                )}
 
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <label className="flex items-center gap-1 text-xs text-forest">

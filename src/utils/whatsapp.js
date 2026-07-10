@@ -1,8 +1,7 @@
 import { WHATSAPP_NUMBER } from '../config'
 import { formatINR, productLabel } from './format'
 
-// Build the full WhatsApp order message text from cart + customer details.
-export function buildOrderMessage({ items, total, customer }) {
+export function buildOrderMessage({ items, total, customer, orderId }) {
   const lines = []
   lines.push('*New Pre-Order — Ranganayaki Godavari Ruchulu*')
   lines.push('')
@@ -24,16 +23,29 @@ export function buildOrderMessage({ items, total, customer }) {
   })
   lines.push('')
   lines.push(`*Total Amount: ${formatINR(total)}*`)
+
+  const method = customer.paymentMethod || 'Pay Later'
+  const payStatus = customer.paymentStatus || 'Pending'
+  lines.push('')
+  lines.push(`*Payment Mode:* ${method}`)
+  lines.push(`*Payment Status:* ${payStatus}`)
+  if (method === 'UPI') {
+    lines.push('_Please share payment screenshot on WhatsApp after paying._')
+  }
+
   if (customer.notes) {
     lines.push('')
     lines.push(`*Notes:* ${customer.notes}`)
+  }
+  if (orderId) {
+    lines.push('')
+    lines.push(`*Order ID:* ${orderId}`)
   }
   lines.push('')
   lines.push('_Pre-orders only. Thank you! 🙏_')
   return lines.join('\n')
 }
 
-// Create a wa.me link that opens WhatsApp with the message pre-filled.
 export function buildWhatsAppLink(message, number = WHATSAPP_NUMBER) {
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
 }

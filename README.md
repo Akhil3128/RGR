@@ -1,7 +1,7 @@
 # Ranganayaki Godavari Ruchulu 🪔
 
 A responsive website + admin panel for a homemade sweets business selling
-authentic **Rajahmundry / Godavari** sweets and snacks in **Vizag**.
+authentic **Godavari** sweets and snacks in **Vizag**.
 
 > **Traditional Taste, Pure Love** · Pre-orders only · 📞 +91 99638 14860
 
@@ -13,7 +13,7 @@ Built with **React + Vite + Tailwind CSS** on the frontend and **Supabase**
 ## ✨ Features
 
 ### Customer website (`/`)
-- Elegant hero, brand story (Rajahmundry → Vizag) and quality section
+- Elegant hero, brand story and quality section
 - Product menu with cards (image placeholder, name, size, price, **Add to Order**)
 - Cart drawer: add multiple items, increase/decrease quantity, remove items
 - Customer form: name, phone, delivery/pickup, address, notes

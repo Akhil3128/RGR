@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { PAYMENT_STATUS_BY_METHOD } from '../constants'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -14,8 +15,18 @@ function buildItemsPayload(items) {
   }))
 }
 
-// Fallback: direct table inserts (older Supabase setups without place_order RPC).
+function resolvePayment(customer) {
+  const method = customer.paymentMethod || 'Pay Later'
+  const status =
+    customer.paymentStatus ||
+    PAYMENT_STATUS_BY_METHOD[method] ||
+    'Pending'
+  return { method, status }
+}
+
 async function saveOrderDirect({ orderId, items, total, customer }) {
+  const { method, status } = resolvePayment(customer)
+
   const { error: orderError } = await supabase.from('orders').insert({
     id: orderId,
     customer_name: customer.name,
@@ -25,7 +36,8 @@ async function saveOrderDirect({ orderId, items, total, customer }) {
     notes: customer.notes || null,
     total_amount: total,
     status: 'New',
-    payment_status: 'Pending',
+    payment_method: method,
+    payment_status: status,
   })
   if (orderError) return { saved: false, error: orderError }
 
@@ -47,8 +59,6 @@ async function saveOrderDirect({ orderId, items, total, customer }) {
   return { saved: true, error: null, orderId }
 }
 
-// Save an order (and its items) to Supabase.
-// Prefers the place_order RPC (atomic: order + items + inventory together).
 export async function saveOrder({ items, total, customer }) {
   if (!isSupabaseConfigured) {
     return {
@@ -64,7 +74,9 @@ export async function saveOrder({ items, total, customer }) {
     return { saved: false, error: { message: 'Cart is empty.' } }
   }
 
+  const { method, status } = resolvePayment(customer)
   const orderId = crypto.randomUUID()
+
   const payload = {
     p_order_id: orderId,
     p_customer_name: customer.name.trim(),
@@ -74,9 +86,10 @@ export async function saveOrder({ items, total, customer }) {
     p_notes: customer.notes || null,
     p_total_amount: total,
     p_items: buildItemsPayload(items),
+    p_payment_method: method,
+    p_payment_status: status,
   }
 
-  // Try atomic RPC first (recommended — also updates inventory).
   const { data: rpcId, error: rpcError } = await supabase.rpc(
     'place_order',
     payload,
@@ -86,7 +99,6 @@ export async function saveOrder({ items, total, customer }) {
     return { saved: true, error: null, orderId: rpcId || orderId }
   }
 
-  // RPC missing? Fall back to direct inserts (run supabase/fix-orders-complete.sql).
   const isMissingRpc =
     rpcError.message?.includes('place_order') ||
     rpcError.code === 'PGRST202'

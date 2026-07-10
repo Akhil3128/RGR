@@ -4,12 +4,18 @@ export const BUSINESS = {
   name: 'Ranganayaki Godavari Ruchulu',
   tagline: 'Traditional Taste, Pure Love',
   city: 'Visakhapatnam (Vizag)',
-  origin: 'Rajahmundry / Godavari',
   phoneDisplay: '+91 99638 14860',
-  // Digits only with country code (used for tel: and WhatsApp links)
   phoneRaw: '919963814860',
 }
 
-// WhatsApp number can be overridden via env, else falls back to shop number.
 export const WHATSAPP_NUMBER =
   import.meta.env.VITE_WHATSAPP_NUMBER || BUSINESS.phoneRaw
+
+// UPI payment — set VITE_UPI_ID in .env or replace the placeholder below.
+export const UPI = {
+  id: import.meta.env.VITE_UPI_ID || 'ENTER_UPI_ID_HERE',
+  name: import.meta.env.VITE_UPI_NAME || BUSINESS.name,
+}
+
+export const isUpiConfigured =
+  Boolean(UPI.id) && UPI.id !== 'ENTER_UPI_ID_HERE'

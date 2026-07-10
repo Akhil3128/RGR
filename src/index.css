@@ -8,7 +8,7 @@
   }
 
   body {
-    @apply bg-cream text-forest-dark font-body antialiased;
+    @apply bg-cream font-body text-ink antialiased;
   }
 
   h1,
@@ -20,46 +20,60 @@
 }
 
 @layer components {
-  /* Primary maroon button */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-maroon px-5 py-2.5
-      font-medium text-cream shadow-soft transition
-      hover:bg-maroon-light active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-maroon px-5 py-2.5
+      font-medium text-cream shadow-soft transition-all duration-200
+      hover:-translate-y-0.5 hover:bg-maroon-light hover:shadow-card
+      active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0;
   }
 
-  /* Gold outline button */
   .btn-gold {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-gold
-      bg-transparent px-5 py-2.5 font-medium text-maroon transition
-      hover:bg-gold hover:text-white active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-gold
+      bg-transparent px-5 py-2.5 font-medium text-maroon transition-all duration-200
+      hover:-translate-y-0.5 hover:bg-gold hover:text-white hover:shadow-soft active:scale-[0.98];
   }
 
-  /* WhatsApp green button */
   .btn-whatsapp {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5
-      font-semibold text-white shadow-soft transition hover:bg-[#1EBE5A] active:scale-[0.98]
-      disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-5 py-2.5
+      font-semibold text-white shadow-soft transition-all duration-200
+      hover:-translate-y-0.5 hover:bg-[#1EBE5A] hover:shadow-card
+      active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-upi {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-forest px-5 py-2.5
+      font-semibold text-cream shadow-soft transition-all duration-200
+      hover:-translate-y-0.5 hover:bg-forest-light hover:shadow-card
+      active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .card {
-    @apply rounded-2xl border border-gold/30 bg-white shadow-card;
+    @apply rounded-2xl border border-gold/20 bg-white/90 shadow-card backdrop-blur-sm;
+  }
+
+  .card-premium {
+    @apply rounded-2xl border border-gold/25 bg-gradient-to-br from-white to-cream-dark/40 shadow-card;
   }
 
   .input {
-    @apply w-full rounded-xl border border-gold/40 bg-cream/60 px-4 py-2.5 text-sm text-forest-dark
-      outline-none transition placeholder:text-forest/40 focus:border-gold focus:ring-2 focus:ring-gold/30;
+    @apply w-full rounded-xl border border-gold/30 bg-white px-4 py-2.5 text-sm text-ink
+      outline-none transition placeholder:text-forest/40
+      focus:border-gold focus:ring-2 focus:ring-gold/25;
   }
 
   .label {
-    @apply mb-1 block text-sm font-medium text-maroon;
+    @apply mb-1.5 block text-sm font-medium text-maroon;
   }
 
   .section-title {
-    @apply text-3xl font-bold text-maroon sm:text-4xl;
+    @apply text-3xl font-bold tracking-tight text-maroon sm:text-4xl;
   }
 
-  /* Decorative traditional divider */
   .divider {
-    @apply mx-auto mt-3 h-1 w-24 rounded-full bg-gradient-to-r from-gold via-maroon to-gold;
+    @apply mx-auto mt-4 h-1 w-20 rounded-full bg-gradient-to-r from-transparent via-gold to-transparent;
+  }
+
+  .badge-pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold;
   }
 }

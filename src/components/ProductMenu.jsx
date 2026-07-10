@@ -37,9 +37,8 @@ export default function ProductMenu() {
         <div className="text-center">
           <h2 className="section-title">Our Menu</h2>
           <div className="divider" />
-          <p className="mx-auto mt-4 max-w-2xl text-forest-dark/80">
-            Choose your favourites and add them to your order. We will confirm
-            everything with you on WhatsApp.
+          <p className="mx-auto mt-4 max-w-2xl text-ink/60">
+            Choose your favourites, add to cart, and place your pre-order.
           </p>
         </div>
 

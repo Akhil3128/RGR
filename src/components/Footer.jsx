@@ -8,16 +8,16 @@ export default function Footer() {
   )
 
   return (
-    <footer id="contact" className="bg-maroon-dark text-cream">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 md:grid-cols-3">
+    <footer id="contact" className="bg-ink text-cream">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 md:grid-cols-3">
         <div>
           <h3 className="font-heading text-xl font-bold text-gold-light">
             {BUSINESS.name}
           </h3>
-          <p className="mt-2 text-sm text-cream/80">{BUSINESS.tagline}</p>
-          <p className="mt-3 text-sm text-cream/70">
-            Authentic {BUSINESS.origin} sweets &amp; snacks, freshly made in{' '}
-            {BUSINESS.city}.
+          <p className="mt-2 text-sm text-cream/75">{BUSINESS.tagline}</p>
+          <p className="mt-3 text-sm leading-relaxed text-cream/60">
+            Authentic homemade sweets, snacks, ghee and fresh items — freshly
+            prepared with care in {BUSINESS.city}.
           </p>
         </div>
 
@@ -25,11 +25,11 @@ export default function Footer() {
           <h4 className="font-heading text-base font-semibold text-gold-light">
             Quick Links
           </h4>
-          <ul className="mt-3 space-y-2 text-sm text-cream/80">
-            <li><a href="#menu" className="hover:text-gold-light">Menu</a></li>
-            <li><a href="#story" className="hover:text-gold-light">Our Story</a></li>
-            <li><a href="#quality" className="hover:text-gold-light">Quality</a></li>
-            <li><a href="/admin/login" className="hover:text-gold-light">Admin Login</a></li>
+          <ul className="mt-4 space-y-2 text-sm text-cream/70">
+            <li><a href="#menu" className="transition hover:text-gold-light">Menu</a></li>
+            <li><a href="#story" className="transition hover:text-gold-light">Our Story</a></li>
+            <li><a href="#quality" className="transition hover:text-gold-light">Quality</a></li>
+            <li><a href="/admin/login" className="transition hover:text-gold-light">Admin Login</a></li>
           </ul>
         </div>
 
@@ -37,12 +37,12 @@ export default function Footer() {
           <h4 className="font-heading text-base font-semibold text-gold-light">
             Contact &amp; Orders
           </h4>
-          <p className="mt-3 rounded-lg bg-cream/10 px-3 py-2 text-sm text-cream/90">
-            🛎️ Pre-orders only
+          <p className="mt-4 rounded-xl bg-white/5 px-3 py-2 text-sm text-cream/85">
+            Pre-orders only
           </p>
           <a
             href={`tel:+${BUSINESS.phoneRaw}`}
-            className="mt-3 flex items-center gap-2 text-sm text-cream/90 hover:text-gold-light"
+            className="mt-4 flex items-center gap-2 text-sm text-cream/85 transition hover:text-gold-light"
           >
             <PhoneIcon className="h-4 w-4" /> {BUSINESS.phoneDisplay}
           </a>
@@ -57,7 +57,7 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="border-t border-cream/10 py-4 text-center text-xs text-cream/60">
+      <div className="border-t border-cream/10 py-5 text-center text-xs text-cream/50">
         © {new Date().getFullYear()} {BUSINESS.name}. All rights reserved.
       </div>
     </footer>

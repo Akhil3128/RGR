@@ -86,7 +86,8 @@ create table if not exists public.orders (
   status         text not null default 'New'
                    check (status in ('New','Confirmed','Preparing','Ready','Delivered','Completed','Cancelled')),
   payment_status text not null default 'Pending'
-                   check (payment_status in ('Pending','Paid','Partial')),
+                   check (payment_status in ('Pending','Pending Verification','Paid','Partial','Failed')),
+  payment_method text not null default 'Pay Later',
   inventory_updated boolean not null default false,
   delivered_at   timestamptz,
   created_at     timestamptz not null default now(),
@@ -247,7 +248,9 @@ create or replace function public.place_order(
   p_address text,
   p_notes text,
   p_total_amount numeric,
-  p_items jsonb
+  p_items jsonb,
+  p_payment_method text default 'Pay Later',
+  p_payment_status text default 'Pending'
 )
 returns uuid
 language plpgsql
@@ -265,7 +268,7 @@ begin
 
   insert into public.orders (
     id, customer_name, customer_phone, order_type, address, notes,
-    total_amount, status, payment_status
+    total_amount, status, payment_method, payment_status
   ) values (
     p_order_id,
     p_customer_name,
@@ -275,7 +278,8 @@ begin
     nullif(trim(coalesce(p_notes, '')), ''),
     p_total_amount,
     'New',
-    'Pending'
+    coalesce(nullif(trim(p_payment_method), ''), 'Pay Later'),
+    coalesce(nullif(trim(p_payment_status), ''), 'Pending')
   );
 
   for item in select * from jsonb_array_elements(coalesce(p_items, '[]'::jsonb))
@@ -304,7 +308,7 @@ end;
 $$;
 
 grant execute on function public.place_order(
-  uuid, text, text, text, text, text, numeric, jsonb
+  uuid, text, text, text, text, text, numeric, jsonb, text, text
 ) to anon, authenticated;
 
 -- ============================================================================
