@@ -119,8 +119,10 @@ begin
   should_deduct := p_new_status in ('Delivered', 'Completed')
     and not coalesce(ord.inventory_updated, false);
 
-  should_revert := p_new_status = 'Cancelled'
-    and coalesce(ord.inventory_updated, false);
+  -- Restore stock when leaving Delivered/Completed (not only on Cancelled).
+  -- Prefer also running migration-inventory-revert-on-status-change.sql.
+  should_revert := coalesce(ord.inventory_updated, false)
+    and p_new_status not in ('Delivered', 'Completed');
 
   if should_deduct then
     for item in select * from public.order_items where order_id = p_order_id
@@ -187,8 +189,9 @@ begin
 
     return jsonb_build_object(
       'success', true,
-      'message', 'Order cancelled — inventory restored',
+      'message', 'Inventory restored — stock returned',
       'inventory_deducted', false,
+      'inventory_reverted', true,
       'warnings', '[]'::jsonb
     );
   end if;

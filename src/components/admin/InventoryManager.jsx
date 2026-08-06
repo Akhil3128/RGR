@@ -83,8 +83,8 @@ export default function InventoryManager() {
       <p className="mb-4 text-sm text-forest/70">
         Closing Stock = Opening Stock + Stock Received − Sales.
         <span className="mt-1 block text-maroon/80">
-          Sales increase only when an order is marked Delivered or Completed in
-          the Orders tab. Set Opening Stock and Stock Received manually.
+          Sales increase when an order is marked Delivered or Completed. If that
+          status is changed back (e.g. to New), stock is restored automatically.
         </span>
       </p>
 
