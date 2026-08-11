@@ -1,4 +1,8 @@
 import { formatINR } from './format'
+import {
+  getProductDescription,
+  getStorefrontCategory,
+} from '../data/productCopy'
 
 /** Sort key so 200 gm < 250 gm < 500 gm < 1/2 Kg < 1 Kg, etc. */
 export function sizeSortValue(size) {
@@ -29,6 +33,24 @@ function sortVariants(variants) {
   })
 }
 
+function finalizeGroup(group, index = 0) {
+  const variants = sortVariants(group.variants || [])
+  const product = {
+    ...group,
+    id: group.id || `group-${slugify(group.name)}`,
+    sort_order: group.sort_order ?? index,
+    variants,
+    available:
+      group.available !== false &&
+      group.is_available !== false &&
+      variants.some((v) => v.is_available),
+  }
+  product.description = getProductDescription(product)
+  product.storefrontCategory = getStorefrontCategory(product)
+  product.image = product.image || product.image_url || ''
+  return product
+}
+
 /**
  * Group flat product rows (Supabase / admin shape) into one card per name
  * with a variants[] array of sizes and prices.
@@ -39,30 +61,30 @@ export function groupProductsByName(rows) {
   // Already grouped (sample / previous pass).
   if (rows[0]?.variants && Array.isArray(rows[0].variants)) {
     return rows
-      .map((product, index) => {
-        const variants = sortVariants(
-          (product.variants || []).map((v, vIndex) => ({
-            id: v.id || `${slugify(product.name)}-${vIndex}`,
-            size: v.size || '',
-            price: Number(v.price) || 0,
-            net_rate: Number(v.net_rate) || 0,
-            is_available: v.is_available !== false,
-            sort_order: v.sort_order ?? product.sort_order ?? index,
-          })),
-        )
-        return {
-          id: product.id || `group-${slugify(product.name)}`,
-          name: product.name,
-          category: product.category || '',
-          image_url: product.image_url ?? null,
-          sort_order: product.sort_order ?? index,
-          available:
-            product.available !== false &&
-            product.is_available !== false &&
-            variants.some((v) => v.is_available),
-          variants,
-        }
-      })
+      .map((product, index) =>
+        finalizeGroup(
+          {
+            id: product.id || `group-${slugify(product.name)}`,
+            name: product.name,
+            category: product.category || '',
+            description: product.description || '',
+            image_url: product.image_url ?? product.image ?? null,
+            image: product.image ?? product.image_url ?? '',
+            sort_order: product.sort_order ?? index,
+            available: product.available,
+            is_available: product.is_available,
+            variants: (product.variants || []).map((v, vIndex) => ({
+              id: v.id || `${slugify(product.name)}-${vIndex}`,
+              size: v.size || '',
+              price: Number(v.price) || 0,
+              net_rate: Number(v.net_rate) || 0,
+              is_available: v.is_available !== false,
+              sort_order: v.sort_order ?? product.sort_order ?? index,
+            })),
+          },
+          index,
+        ),
+      )
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
   }
 
@@ -78,7 +100,9 @@ export function groupProductsByName(rows) {
         id: `group-${slugify(name)}`,
         name,
         category: row.category || '',
+        description: row.description || '',
         image_url: row.image_url ?? null,
+        image: row.image_url || '',
         sort_order: row.sort_order ?? 0,
         variants: [],
       })
@@ -87,7 +111,13 @@ export function groupProductsByName(rows) {
     const group = map.get(key)
     group.sort_order = Math.min(group.sort_order ?? 0, row.sort_order ?? 0)
     if (!group.category && row.category) group.category = row.category
-    if (!group.image_url && row.image_url) group.image_url = row.image_url
+    if (!group.image_url && row.image_url) {
+      group.image_url = row.image_url
+      group.image = row.image_url
+    }
+    if (!group.description && row.description) {
+      group.description = row.description
+    }
 
     group.variants.push({
       id: row.id,
@@ -100,14 +130,7 @@ export function groupProductsByName(rows) {
   }
 
   return Array.from(map.values())
-    .map((group) => {
-      const variants = sortVariants(group.variants)
-      return {
-        ...group,
-        available: variants.some((v) => v.is_available),
-        variants,
-      }
-    })
+    .map((group, index) => finalizeGroup(group, index))
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 }
 
@@ -119,7 +142,7 @@ function slugify(value) {
     .replace(/^-|-$/g, '')
 }
 
-/** Label used in the Choose Weight dropdown. */
+/** Label used in the weight dropdown. */
 export function variantOptionLabel(variant) {
   const size = variant.size || 'Standard'
   return `${size} — ${formatINR(variant.price)}`

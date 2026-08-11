@@ -6,6 +6,7 @@ export const SAMPLE_PRODUCTS = [
   {
     name: 'Kova',
     category: 'Sweets',
+    description: 'Rich traditional milk sweet',
     available: true,
     sort_order: 1,
     image_url: null,
@@ -19,6 +20,7 @@ export const SAMPLE_PRODUCTS = [
   {
     name: 'Sunnundalu',
     category: 'Sweets',
+    description: 'Classic Andhra urad dal laddu',
     available: true,
     sort_order: 5,
     image_url: null,
@@ -32,6 +34,7 @@ export const SAMPLE_PRODUCTS = [
   {
     name: 'Plain Putharekulu',
     category: 'Sweets',
+    description: 'Paper-thin sweet rolls, simply filled',
     available: true,
     sort_order: 9,
     image_url: null,
@@ -42,6 +45,7 @@ export const SAMPLE_PRODUCTS = [
   {
     name: 'Dryfruit Putharekulu',
     category: 'Sweets',
+    description: 'Crisp rolls filled with dry fruits',
     available: true,
     sort_order: 10,
     image_url: null,
@@ -52,6 +56,7 @@ export const SAMPLE_PRODUCTS = [
   {
     name: 'Jantikalu Hot',
     category: 'Snacks',
+    description: 'Crispy spiral snack, lightly spiced',
     available: true,
     sort_order: 11,
     image_url: null,
@@ -62,6 +67,7 @@ export const SAMPLE_PRODUCTS = [
   {
     name: 'Boondhi Hot',
     category: 'Snacks',
+    description: 'Crunchy pearl snack, freshly fried',
     available: true,
     sort_order: 12,
     image_url: null,
@@ -72,6 +78,7 @@ export const SAMPLE_PRODUCTS = [
   {
     name: 'Paneer',
     category: 'Dairy',
+    description: 'Fresh homemade paneer',
     available: true,
     sort_order: 13,
     image_url: null,
@@ -84,6 +91,7 @@ export const SAMPLE_PRODUCTS = [
   {
     name: 'Cow Ghee',
     category: 'Dairy',
+    description: 'Pure traditional cow ghee',
     available: true,
     sort_order: 16,
     image_url: null,
@@ -95,6 +103,7 @@ export const SAMPLE_PRODUCTS = [
   {
     name: 'Buffalo Ghee',
     category: 'Dairy',
+    description: 'Rich traditional buffalo ghee',
     available: true,
     sort_order: 18,
     image_url: null,
