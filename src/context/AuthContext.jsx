@@ -9,13 +9,14 @@ export function AuthProvider({ children }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  async function refreshAdminStatus() {
-    if (!isSupabaseConfigured || !session?.user) {
+  async function resolveAdmin(nextSession) {
+    if (!isSupabaseConfigured || !nextSession?.user) {
       setIsAdmin(false)
-      return
+      return false
     }
     const { isAdmin: admin } = await checkIsAdmin()
     setIsAdmin(admin)
+    return admin
   }
 
   useEffect(() => {
@@ -24,26 +25,33 @@ export function AuthProvider({ children }) {
       return
     }
 
-    supabase.auth.getSession().then(({ data }) => {
+    let mounted = true
+
+    async function init() {
+      const { data } = await supabase.auth.getSession()
+      if (!mounted) return
       setSession(data.session)
-      setLoading(false)
-    })
+      // Wait for admin check before ending loading — avoids false
+      // "Admin access not set up" flash on refresh.
+      await resolveAdmin(data.session)
+      if (mounted) setLoading(false)
+    }
+
+    init()
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession)
+      await resolveAdmin(newSession)
     })
 
-    return () => subscription.unsubscribe()
-  }, [])
-
-  // Re-check admin status whenever the logged-in user changes.
-  useEffect(() => {
-    if (loading) return
-    refreshAdminStatus()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user?.id, loading])
+  }, [])
 
   async function signIn(email, password) {
     if (!isSupabaseConfigured) {
@@ -51,8 +59,7 @@ export function AuthProvider({ children }) {
     }
     const result = await supabase.auth.signInWithPassword({ email, password })
     if (!result.error) {
-      const { isAdmin: admin } = await checkIsAdmin()
-      setIsAdmin(admin)
+      await resolveAdmin(result.data.session)
     }
     return result
   }
@@ -70,7 +77,7 @@ export function AuthProvider({ children }) {
     loading,
     signIn,
     signOut,
-    refreshAdminStatus,
+    refreshAdminStatus: () => resolveAdmin(session),
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

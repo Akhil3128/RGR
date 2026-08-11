@@ -24,23 +24,7 @@ function resolvePayment(customer) {
   return { method, status }
 }
 
-async function saveOrderDirect({ orderId, items, total, customer }) {
-  const { method, status } = resolvePayment(customer)
-
-  const { error: orderError } = await supabase.from('orders').insert({
-    id: orderId,
-    customer_name: customer.name,
-    customer_phone: customer.phone,
-    order_type: customer.orderType,
-    address: customer.orderType === 'delivery' ? customer.address : null,
-    notes: customer.notes || null,
-    total_amount: total,
-    status: 'New',
-    payment_method: method,
-    payment_status: status,
-  })
-  if (orderError) return { saved: false, error: orderError }
-
+async function insertOrderItems(orderId, items) {
   const orderItems = buildItemsPayload(items).map((it) => ({
     order_id: orderId,
     product_id: it.product_id,
@@ -50,11 +34,47 @@ async function saveOrderDirect({ orderId, items, total, customer }) {
     quantity: it.quantity,
     line_total: it.line_total,
   }))
+  return supabase.from('order_items').insert(orderItems)
+}
 
-  const { error: itemsError } = await supabase
-    .from('order_items')
-    .insert(orderItems)
+async function saveOrderDirect({ orderId, items, total, customer }) {
+  const { method, status } = resolvePayment(customer)
 
+  const baseRow = {
+    id: orderId,
+    customer_name: customer.name,
+    customer_phone: customer.phone,
+    order_type: customer.orderType,
+    address: customer.orderType === 'delivery' ? customer.address : null,
+    notes: customer.notes || null,
+    total_amount: total,
+    status: 'New',
+  }
+
+  // Try with payment fields first (requires migration-upi-payment.sql).
+  let { error: orderError } = await supabase.from('orders').insert({
+    ...baseRow,
+    payment_method: method,
+    payment_status: status,
+  })
+
+  // Fallback for DBs that don't have payment_method yet.
+  if (
+    orderError &&
+    (orderError.message?.includes('payment_method') ||
+      orderError.message?.includes('payment_status') ||
+      orderError.code === 'PGRST204')
+  ) {
+    const retry = await supabase.from('orders').insert({
+      ...baseRow,
+      payment_status: status === 'Pending Verification' ? 'Pending' : status,
+    })
+    orderError = retry.error
+  }
+
+  if (orderError) return { saved: false, error: orderError }
+
+  const { error: itemsError } = await insertOrderItems(orderId, items)
   if (itemsError) return { saved: false, error: itemsError }
   return { saved: true, error: null, orderId }
 }
@@ -99,11 +119,13 @@ export async function saveOrder({ items, total, customer }) {
     return { saved: true, error: null, orderId: rpcId || orderId }
   }
 
-  const isMissingRpc =
+  // Older place_order without payment args, or missing function → direct insert.
+  const canFallback =
     rpcError.message?.includes('place_order') ||
-    rpcError.code === 'PGRST202'
+    rpcError.code === 'PGRST202' ||
+    rpcError.message?.includes('payment')
 
-  if (!isMissingRpc) {
+  if (!canFallback) {
     return { saved: false, error: rpcError }
   }
 

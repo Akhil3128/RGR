@@ -1,8 +1,18 @@
-import { supabase } from '../lib/supabase'
+import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { dedupeProducts } from './products'
+
+function notConfigured() {
+  return {
+    data: null,
+    error: { message: 'Supabase is not configured. Add keys to .env and restart.' },
+  }
+}
 
 // ---------- Admin check ----------
 export async function checkIsAdmin() {
+  if (!isSupabaseConfigured || !supabase) {
+    return { isAdmin: false, error: { message: 'Supabase not configured' } }
+  }
   const { data, error } = await supabase.rpc('is_admin')
   if (error) return { isAdmin: false, error }
   return { isAdmin: Boolean(data), error: null }
@@ -10,6 +20,7 @@ export async function checkIsAdmin() {
 
 // ---------- Products ----------
 export async function getProducts() {
+  if (!isSupabaseConfigured) return notConfigured()
   const { data, error } = await supabase
     .from('products')
     .select('*')
@@ -18,20 +29,36 @@ export async function getProducts() {
 }
 
 export async function createProduct(product) {
-  return supabase.from('products').insert(product).select().single()
+  if (!isSupabaseConfigured) return notConfigured()
+  const { data, error } = await supabase
+    .from('products')
+    .insert(product)
+    .select()
+    .single()
+
+  // Ensure every new product has an inventory row.
+  if (!error && data?.id) {
+    await supabase
+      .from('inventory')
+      .upsert({ product_id: data.id }, { onConflict: 'product_id' })
+  }
+
+  return { data, error }
 }
 
 export async function updateProduct(id, changes) {
+  if (!isSupabaseConfigured) return notConfigured()
   return supabase.from('products').update(changes).eq('id', id).select().single()
 }
 
 export async function deleteProduct(id) {
+  if (!isSupabaseConfigured) return notConfigured()
   return supabase.from('products').delete().eq('id', id)
 }
 
 // ---------- Inventory ----------
-// Returns inventory rows joined with product name/size.
 export async function getInventory() {
+  if (!isSupabaseConfigured) return notConfigured()
   return supabase
     .from('inventory')
     .select('*, products(name, size)')
@@ -39,6 +66,7 @@ export async function getInventory() {
 }
 
 export async function upsertInventory(row) {
+  if (!isSupabaseConfigured) return notConfigured()
   return supabase
     .from('inventory')
     .upsert(row, { onConflict: 'product_id' })
@@ -48,6 +76,7 @@ export async function upsertInventory(row) {
 
 // ---------- Orders ----------
 export async function getOrders() {
+  if (!isSupabaseConfigured) return notConfigured()
   return supabase
     .from('orders')
     .select('*, order_items(*)')
@@ -55,12 +84,15 @@ export async function getOrders() {
 }
 
 export async function updateOrder(id, changes) {
+  if (!isSupabaseConfigured) return notConfigured()
   return supabase.from('orders').update(changes).eq('id', id).select().single()
 }
 
-// Update order status and deduct inventory when marked Delivered / Completed.
-// Uses admin_update_order_status RPC (safe: deducts only once per order).
 export async function updateOrderStatus(id, status) {
+  if (!isSupabaseConfigured) {
+    return { data: null, error: { message: 'Supabase is not configured.' } }
+  }
+
   const { data, error } = await supabase.rpc('admin_update_order_status', {
     p_order_id: id,
     p_new_status: status,
@@ -68,14 +100,17 @@ export async function updateOrderStatus(id, status) {
 
   if (error) {
     // Fallback if migration not run yet — status only, no inventory.
-    if (error.message?.includes('admin_update_order_status') || error.code === 'PGRST202') {
+    if (
+      error.message?.includes('admin_update_order_status') ||
+      error.code === 'PGRST202'
+    ) {
       const result = await updateOrder(id, { status })
       return {
         data: result.data
           ? {
               success: true,
               message:
-                'Status updated. Run supabase/migration-inventory-on-delivery.sql to enable inventory on delivery.',
+                'Status updated. Run supabase/migration-inventory-revert-on-status-change.sql so inventory updates automatically.',
               warnings: [],
             }
           : null,
@@ -89,13 +124,19 @@ export async function updateOrderStatus(id, status) {
 }
 
 // ---------- Dashboard stats ----------
-// Pulls the data needed to compute all dashboard cards.
 export async function getDashboardData() {
+  if (!isSupabaseConfigured) {
+    const err = { error: { message: 'Supabase not configured' } }
+    return { orders: err, items: err, inventory: err }
+  }
+
   const [orders, items, inventory] = await Promise.all([
     supabase.from('orders').select('id, status, total_amount'),
     supabase
       .from('order_items')
-      .select('quantity, unit_price, line_total, orders(status), products(net_rate)'),
+      .select(
+        'quantity, unit_price, line_total, orders(status), products(net_rate)',
+      ),
     supabase.from('inventory').select('*, products(name, size)'),
   ])
   return { orders, items, inventory }

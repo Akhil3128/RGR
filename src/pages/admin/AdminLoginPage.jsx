@@ -5,12 +5,21 @@ import { isSupabaseConfigured } from '../../lib/supabase'
 import { BUSINESS } from '../../config'
 
 export default function AdminLoginPage() {
-  const { user, signIn } = useAuth()
+  const { user, loading: authLoading, signIn } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Wait for auth restore so we don't bounce while session is loading.
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-maroon text-cream">
+        Loading…
+      </div>
+    )
+  }
 
   if (user) return <Navigate to="/admin" replace />
 

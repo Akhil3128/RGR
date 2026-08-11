@@ -33,18 +33,34 @@ export default function CartDrawer({ open, onClose }) {
     setCustomer((c) => ({ ...c, [field]: value }))
   }
 
-  const canSubmit =
-    items.length > 0 &&
-    customer.name.trim() &&
-    customer.phone.trim() &&
-    (customer.orderType === 'pickup' || customer.address.trim())
+  function isValidPhone(phone) {
+    const digits = String(phone || '').replace(/\D/g, '')
+    return (
+      digits.length === 10 ||
+      (digits.length === 12 && digits.startsWith('91'))
+    )
+  }
 
   const paymentStatus =
     PAYMENT_STATUS_BY_METHOD[customer.paymentMethod] || 'Pending'
 
+  function resetCheckoutState() {
+    setCustomer(EMPTY_CUSTOMER)
+    setUpiPaidHint(false)
+    setShowUpiDesktop(false)
+    setError('')
+    setSaveWarning('')
+  }
+
   function handlePayWithUpi() {
     if (!isUpiConfigured) return
-    const note = buildOrderNote({ customerName: customer.name.trim() })
+    if (!customer.name.trim()) {
+      setError('Please enter your name before paying with UPI.')
+      return
+    }
+    const note = buildOrderNote({
+      customerName: customer.name.trim() || 'Customer',
+    })
     const link = buildUpiLink({ amount: total, note })
 
     if (isMobileDevice()) {
@@ -56,8 +72,20 @@ export default function CartDrawer({ open, onClose }) {
   }
 
   async function handlePlaceOrder() {
-    if (!canSubmit) {
-      setError('Please add items and fill your name, phone and address.')
+    if (!items.length) {
+      setError('Your cart is empty.')
+      return
+    }
+    if (!customer.name.trim() || !customer.phone.trim()) {
+      setError('Please fill your name and phone number.')
+      return
+    }
+    if (!isValidPhone(customer.phone)) {
+      setError('Please enter a valid 10-digit phone number.')
+      return
+    }
+    if (customer.orderType === 'delivery' && !customer.address.trim()) {
+      setError('Please enter your delivery address.')
       return
     }
 
@@ -77,6 +105,9 @@ export default function CartDrawer({ open, onClose }) {
       paymentStatus,
     }
 
+    // Open the tab immediately (user gesture) so WhatsApp is not blocked.
+    const waWindow = window.open('', '_blank', 'noopener,noreferrer')
+
     let saveResult = { saved: false, error: null, orderId: null }
     try {
       saveResult = await saveOrder({ items, total, customer: orderCustomer })
@@ -91,15 +122,19 @@ export default function CartDrawer({ open, onClose }) {
       orderId: saveResult.orderId,
     })
     const link = buildWhatsAppLink(message)
-    window.open(link, '_blank', 'noopener,noreferrer')
+
+    if (waWindow) {
+      waWindow.location.href = link
+    } else {
+      // Popup blocked — still open WhatsApp in same tab flow via anchor.
+      window.location.href = link
+    }
 
     setSubmitting(false)
 
     if (saveResult.saved) {
       clearCart()
-      setCustomer(EMPTY_CUSTOMER)
-      setUpiPaidHint(false)
-      setShowUpiDesktop(false)
+      resetCheckoutState()
       onClose()
     } else if (saveResult.error) {
       setSaveWarning(
@@ -370,7 +405,10 @@ export default function CartDrawer({ open, onClose }) {
             </button>
 
             <button
-              onClick={clearCart}
+              onClick={() => {
+                clearCart()
+                resetCheckoutState()
+              }}
               className="mt-2 w-full text-center text-xs text-ink/50 hover:text-maroon"
             >
               Clear cart

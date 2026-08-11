@@ -2,12 +2,13 @@ import { UPI } from '../config'
 
 // Build a UPI deep-link for mobile payment apps.
 export function buildUpiLink({ amount, note }) {
+  const safeAmount = Math.max(0, Number(amount) || 0)
   const params = new URLSearchParams({
     pa: UPI.id,
     pn: UPI.name,
-    am: String(Number(amount).toFixed(2)),
+    am: safeAmount.toFixed(2),
     cu: 'INR',
-    tn: note,
+    tn: (note || 'Ranganayaki order').slice(0, 80),
   })
   return `upi://pay?${params.toString()}`
 }

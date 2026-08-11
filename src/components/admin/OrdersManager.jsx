@@ -31,18 +31,23 @@ export default function OrdersManager() {
   const [expanded, setExpanded] = useState(null)
   const [updatingId, setUpdatingId] = useState(null)
 
-  async function load() {
-    setLoading(true)
+  async function load({ silent = false } = {}) {
+    if (!silent) setLoading(true)
     const { data, error: err } = await getOrders()
     if (err) setError(err.message)
-    else setOrders(data || [])
-    setLoading(false)
+    else {
+      // Don't wipe a visible success/error banner on silent refresh.
+      if (!silent) setError('')
+      setOrders(data || [])
+    }
+    if (!silent) setLoading(false)
   }
 
   useEffect(() => {
     load()
-    const interval = setInterval(load, 15000)
-    const onFocus = () => load()
+    // Silent refresh — avoid "Loading orders…" flicker every 15s.
+    const interval = setInterval(() => load({ silent: true }), 15000)
+    const onFocus = () => load({ silent: true })
     window.addEventListener('focus', onFocus)
     return () => {
       clearInterval(interval)
@@ -221,7 +226,7 @@ export default function OrdersManager() {
                     Payment:
                     <select
                       className="input w-auto px-2 py-1 text-sm"
-                      value={o.payment_status}
+                      value={o.payment_status || 'Pending'}
                       onChange={(e) => changePayment(o, e.target.value)}
                     >
                       {PAYMENT_STATUSES.map((s) => (
