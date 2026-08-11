@@ -49,3 +49,22 @@ export function buildOrderMessage({ items, total, customer, orderId }) {
 export function buildWhatsAppLink(message, number = WHATSAPP_NUMBER) {
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
 }
+
+/**
+ * Open a WhatsApp chat link without leaving a blank browser tab.
+ * - Mobile: navigate the current tab (opens the WhatsApp app).
+ * - Desktop: open the real URL in a new tab (never about:blank first).
+ * Returns false when a desktop popup is blocked so the UI can show a button.
+ */
+export function openWhatsApp(link) {
+  if (typeof window === 'undefined' || !link) return false
+
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+  if (isMobile) {
+    window.location.assign(link)
+    return true
+  }
+
+  const win = window.open(link, '_blank')
+  return Boolean(win)
+}

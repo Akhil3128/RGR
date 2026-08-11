@@ -85,7 +85,7 @@ export async function saveOrder({ items, total, customer }) {
       saved: false,
       error: {
         message:
-          'Supabase is not connected. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file and restart npm run dev.',
+          'Supabase is not connected. For local: add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env and restart. For the live site: set the same vars in Vercel → Settings → Environment Variables, then Redeploy.',
       },
     }
   }

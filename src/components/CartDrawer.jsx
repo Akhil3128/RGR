@@ -6,7 +6,11 @@ import {
   PAYMENT_STATUS_BY_METHOD,
 } from '../constants'
 import { formatINR, productLabel } from '../utils/format'
-import { buildOrderMessage, buildWhatsAppLink } from '../utils/whatsapp'
+import {
+  buildOrderMessage,
+  buildWhatsAppLink,
+  openWhatsApp,
+} from '../utils/whatsapp'
 import { buildUpiLink, buildOrderNote, isMobileDevice } from '../utils/upi'
 import { saveOrder } from '../services/orders'
 import { CloseIcon, MinusIcon, PlusIcon, TrashIcon, WhatsAppIcon } from './icons'
@@ -26,6 +30,7 @@ export default function CartDrawer({ open, onClose }) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [saveWarning, setSaveWarning] = useState('')
+  const [whatsappLink, setWhatsappLink] = useState('')
   const [upiPaidHint, setUpiPaidHint] = useState(false)
   const [showUpiDesktop, setShowUpiDesktop] = useState(false)
 
@@ -50,6 +55,7 @@ export default function CartDrawer({ open, onClose }) {
     setShowUpiDesktop(false)
     setError('')
     setSaveWarning('')
+    setWhatsappLink('')
   }
 
   function handlePayWithUpi() {
@@ -98,6 +104,7 @@ export default function CartDrawer({ open, onClose }) {
 
     setError('')
     setSaveWarning('')
+    setWhatsappLink('')
     setSubmitting(true)
 
     const orderCustomer = {
@@ -105,9 +112,9 @@ export default function CartDrawer({ open, onClose }) {
       paymentStatus,
     }
 
-    // Open the tab immediately (user gesture) so WhatsApp is not blocked.
-    const waWindow = window.open('', '_blank', 'noopener,noreferrer')
-
+    // Save first, then open WhatsApp with the real URL.
+    // Do NOT open about:blank first — that leaves an empty tab (especially
+    // with noopener, where the handle is null and the blank tab stays).
     let saveResult = { saved: false, error: null, orderId: null }
     try {
       saveResult = await saveOrder({ items, total, customer: orderCustomer })
@@ -122,25 +129,33 @@ export default function CartDrawer({ open, onClose }) {
       orderId: saveResult.orderId,
     })
     const link = buildWhatsAppLink(message)
+    setWhatsappLink(link)
 
-    if (waWindow) {
-      waWindow.location.href = link
-    } else {
-      // Popup blocked — still open WhatsApp in same tab flow via anchor.
-      window.location.href = link
-    }
-
+    const opened = openWhatsApp(link)
     setSubmitting(false)
 
     if (saveResult.saved) {
-      clearCart()
-      resetCheckoutState()
-      onClose()
+      if (opened) {
+        clearCart()
+        resetCheckoutState()
+        onClose()
+      } else {
+        // Keep cart visible until they tap the fallback link.
+        setSaveWarning(
+          'Order saved. Tap “Open WhatsApp” below to send the order message.',
+        )
+      }
     } else if (saveResult.error) {
       setSaveWarning(
-        `WhatsApp opened, but order was NOT saved: ${saveResult.error.message}`,
+        opened
+          ? `WhatsApp opened, but order was NOT saved: ${saveResult.error.message}`
+          : `Order was NOT saved: ${saveResult.error.message}. Tap “Open WhatsApp” to still send the message.`,
       )
     }
+  }
+
+  function handleOpenWhatsAppFallback() {
+    if (whatsappLink) clearCart()
   }
 
   return (
@@ -386,6 +401,19 @@ export default function CartDrawer({ open, onClose }) {
               <p className="mb-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
                 {saveWarning}
               </p>
+            )}
+
+            {whatsappLink && (
+              <a
+                href={whatsappLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={handleOpenWhatsAppFallback}
+                className="btn-whatsapp mb-3 flex w-full items-center justify-center gap-2 py-3.5 text-base"
+              >
+                <WhatsAppIcon />
+                Open WhatsApp
+              </a>
             )}
 
             <div className="mb-4 flex items-center justify-between">

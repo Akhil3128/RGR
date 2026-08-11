@@ -175,11 +175,37 @@ npm run preview   # preview the production build
 npm run lint      # run ESLint
 ```
 
-## ☁️ Deploy
-Any static host works (Vercel, Netlify, Cloudflare Pages):
+## ☁️ Deploy (Vercel)
+
+Your live site is at **https://rgr-three.vercel.app**.
+
+Vite bakes `VITE_...` values into the JS **at build time**. A local `.env`
+file does **not** affect the live site. If customers see
+“WhatsApp opened but Supabase is not connected”, the Vercel project is
+missing those variables (or needs a redeploy after you add them).
+
+### Required Vercel env vars
+In **Vercel → Project → Settings → Environment Variables**, add for
+Production (and Preview if you want):
+
+| Name | Value |
+| --- | --- |
+| `VITE_SUPABASE_URL` | `https://YOUR-PROJECT.supabase.co` (no `/rest/v1`) |
+| `VITE_SUPABASE_ANON_KEY` | Supabase **anon** / public key |
+| `VITE_WHATSAPP_NUMBER` | `919963814860` |
+| `VITE_UPI_ID` | `8179537895@ybl` |
+| `VITE_UPI_NAME` | `Ranganayaki Godavari Ruchulu` |
+
+Then **Deployments → ⋯ → Redeploy** (or push a new commit) so a fresh
+build picks them up.
+
+### Build settings
+- Framework: Vite
 - Build command: `npm run build`
 - Output directory: `dist`
-- Add the same `VITE_...` environment variables in the host's dashboard.
+
+Any static host (Netlify, Cloudflare Pages) works the same way — set the
+same `VITE_...` vars in that host’s dashboard before building.
 
 ---
 
