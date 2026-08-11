@@ -88,6 +88,9 @@ create table if not exists public.orders (
   payment_status text not null default 'Pending'
                    check (payment_status in ('Pending','Pending Verification','Paid','Partial','Failed')),
   payment_method text not null default 'Pay Later',
+  razorpay_order_id text,
+  razorpay_payment_id text,
+  razorpay_signature text,
   inventory_updated boolean not null default false,
   delivered_at   timestamptz,
   created_at     timestamptz not null default now(),

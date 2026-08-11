@@ -197,6 +197,11 @@ export default function OrdersManager() {
                       )}
                       <Badge value={o.payment_status} />
                     </div>
+                    {o.razorpay_payment_id && (
+                      <p className="mt-1 font-mono text-[10px] text-ink/50">
+                        Razorpay: {o.razorpay_payment_id}
+                      </p>
+                    )}
                   </div>
                 </div>
 

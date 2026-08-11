@@ -195,6 +195,7 @@ Production (and Preview if you want):
 | `VITE_WHATSAPP_NUMBER` | `919963814860` |
 | `VITE_UPI_ID` | `8179537895@ybl` |
 | `VITE_UPI_NAME` | `Ranganayaki Godavari Ruchulu` |
+| `VITE_RAZORPAY_KEY_ID` | Razorpay **Key ID** only (public) |
 
 Then **Deployments → ⋯ → Redeploy** (or push a new commit) so a fresh
 build picks them up.
@@ -206,6 +207,71 @@ build picks them up.
 
 Any static host (Netlify, Cloudflare Pages) works the same way — set the
 same `VITE_...` vars in that host’s dashboard before building.
+
+---
+
+## 💳 Razorpay (online payments)
+
+Razorpay is optional. Until `VITE_RAZORPAY_KEY_ID` is set, the cart hides
+**Pay Online (Razorpay)** and keeps UPI / Pay Later / WhatsApp.
+
+### 1. Create Razorpay keys
+1. Sign up at [razorpay.com](https://razorpay.com) and complete KYC.
+2. Dashboard → **API Keys** → generate **Test** keys first.
+3. Copy **Key ID** (public) and **Key Secret** (server only).
+
+### 2. Run the SQL migration
+In Supabase → **SQL Editor**, run:
+[`supabase/migration-razorpay.sql`](supabase/migration-razorpay.sql)
+
+### 3. Deploy Edge Functions
+From your machine (with [Supabase CLI](https://supabase.com/docs/guides/cli) logged in):
+
+```bash
+supabase login
+supabase link --project-ref ycyvcucumfkhyjyfwfqt
+
+supabase secrets set \
+  RAZORPAY_KEY_ID=rzp_test_xxx \
+  RAZORPAY_KEY_SECRET=your_secret
+
+supabase functions deploy create-razorpay-order
+supabase functions deploy verify-razorpay-payment
+supabase functions deploy razorpay-webhook
+```
+
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically
+to hosted Edge Functions.
+
+### 4. Frontend env
+Add to local `.env` and Vercel:
+
+```env
+VITE_RAZORPAY_KEY_ID=rzp_test_xxx
+```
+
+Redeploy the site.
+
+### 5. Optional webhook (recommended)
+In Razorpay → **Webhooks**, add:
+
+`https://ycyvcucumfkhyjyfwfqt.supabase.co/functions/v1/razorpay-webhook`
+
+Events: `payment.captured` (and optionally `payment.authorized`).
+
+Then:
+
+```bash
+supabase secrets set RAZORPAY_WEBHOOK_SECRET=whsec_xxx
+```
+
+### Checkout flow
+1. Customer chooses **Pay Online (Razorpay)**
+2. Order is saved as `Pending`
+3. Razorpay Checkout opens (UPI / card / netbanking)
+4. Payment signature is verified by the Edge Function
+5. Order becomes **Paid**
+6. WhatsApp opens with the paid order details
 
 ---
 

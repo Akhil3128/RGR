@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useCart } from '../context/CartContext'
-import { isUpiConfigured, UPI } from '../config'
+import {
+  isRazorpayConfigured,
+  isUpiConfigured,
+  UPI,
+} from '../config'
 import {
   PAYMENT_METHODS,
   PAYMENT_STATUS_BY_METHOD,
@@ -13,6 +17,7 @@ import {
 } from '../utils/whatsapp'
 import { buildUpiLink, buildOrderNote, isMobileDevice } from '../utils/upi'
 import { saveOrder } from '../services/orders'
+import { openRazorpayCheckout, createRazorpayOrder } from '../services/razorpay'
 import { CloseIcon, MinusIcon, PlusIcon, TrashIcon, WhatsAppIcon } from './icons'
 
 const EMPTY_CUSTOMER = {
@@ -21,8 +26,13 @@ const EMPTY_CUSTOMER = {
   orderType: 'delivery',
   address: '',
   notes: '',
-  paymentMethod: 'Pay Later',
+  paymentMethod: isRazorpayConfigured ? 'Razorpay' : 'Pay Later',
 }
+
+const VISIBLE_PAYMENT_METHODS = PAYMENT_METHODS.filter((m) => {
+  if (m.id === 'Razorpay') return isRazorpayConfigured
+  return true
+})
 
 export default function CartDrawer({ open, onClose }) {
   const { items, total, increment, decrement, removeItem, clearCart } = useCart()
@@ -46,9 +56,6 @@ export default function CartDrawer({ open, onClose }) {
     )
   }
 
-  const paymentStatus =
-    PAYMENT_STATUS_BY_METHOD[customer.paymentMethod] || 'Pending'
-
   function resetCheckoutState() {
     setCustomer(EMPTY_CUSTOMER)
     setUpiPaidHint(false)
@@ -56,6 +63,56 @@ export default function CartDrawer({ open, onClose }) {
     setError('')
     setSaveWarning('')
     setWhatsappLink('')
+  }
+
+  function validateCheckout() {
+    if (!items.length) return 'Your cart is empty.'
+    if (!customer.name.trim() || !customer.phone.trim()) {
+      return 'Please fill your name and phone number.'
+    }
+    if (!isValidPhone(customer.phone)) {
+      return 'Please enter a valid 10-digit phone number.'
+    }
+    if (customer.orderType === 'delivery' && !customer.address.trim()) {
+      return 'Please enter your delivery address.'
+    }
+    if (customer.paymentMethod === 'UPI' && !isUpiConfigured) {
+      return 'UPI payment is not configured yet. Please choose another method.'
+    }
+    if (customer.paymentMethod === 'Razorpay' && !isRazorpayConfigured) {
+      return 'Online payment is not configured yet. Please choose another method.'
+    }
+    return ''
+  }
+
+  function finishWithWhatsApp({
+    items: orderItems,
+    total: orderTotal,
+    customer: orderCustomer,
+    orderId,
+    openedHint,
+  }) {
+    const message = buildOrderMessage({
+      items: orderItems,
+      total: orderTotal,
+      customer: orderCustomer,
+      orderId,
+    })
+    const link = buildWhatsAppLink(message)
+    setWhatsappLink(link)
+    const opened = openWhatsApp(link)
+
+    if (opened) {
+      clearCart()
+      resetCheckoutState()
+      onClose()
+      return
+    }
+
+    setSaveWarning(
+      openedHint ||
+        'Order saved. Tap “Open WhatsApp” below to send the order message.',
+    )
   }
 
   function handlePayWithUpi() {
@@ -77,28 +134,10 @@ export default function CartDrawer({ open, onClose }) {
     setUpiPaidHint(true)
   }
 
-  async function handlePlaceOrder() {
-    if (!items.length) {
-      setError('Your cart is empty.')
-      return
-    }
-    if (!customer.name.trim() || !customer.phone.trim()) {
-      setError('Please fill your name and phone number.')
-      return
-    }
-    if (!isValidPhone(customer.phone)) {
-      setError('Please enter a valid 10-digit phone number.')
-      return
-    }
-    if (customer.orderType === 'delivery' && !customer.address.trim()) {
-      setError('Please enter your delivery address.')
-      return
-    }
-
-    if (customer.paymentMethod === 'UPI' && !isUpiConfigured) {
-      setError(
-        'UPI payment is not configured yet. Please choose Pay Later or WhatsApp.',
-      )
+  async function handleRazorpayCheckout() {
+    const validationError = validateCheckout()
+    if (validationError) {
+      setError(validationError)
       return
     }
 
@@ -109,12 +148,108 @@ export default function CartDrawer({ open, onClose }) {
 
     const orderCustomer = {
       ...customer,
+      paymentMethod: 'Razorpay',
+      paymentStatus: PAYMENT_STATUS_BY_METHOD.Razorpay,
+    }
+
+    let saveResult = { saved: false, error: null, orderId: null }
+    try {
+      saveResult = await saveOrder({
+        items,
+        total,
+        customer: orderCustomer,
+      })
+    } catch (err) {
+      saveResult = { saved: false, error: { message: err.message } }
+    }
+
+    if (!saveResult.saved) {
+      setSubmitting(false)
+      setError(
+        saveResult.error?.message ||
+          'Could not save order before payment. Please try again.',
+      )
+      return
+    }
+
+    try {
+      const { data: rzpOrder, error: createError } = await createRazorpayOrder(
+        saveResult.orderId,
+      )
+      if (createError || !rzpOrder?.order_id) {
+        throw new Error(
+          createError?.message ||
+            rzpOrder?.error ||
+            'Could not start Razorpay payment. Deploy Edge Functions and set secrets.',
+        )
+      }
+
+      const paymentResult = await openRazorpayCheckout({
+        orderId: saveResult.orderId,
+        razorpayOrder: rzpOrder,
+        customer,
+      })
+
+      const paidCustomer = {
+        ...orderCustomer,
+        paymentStatus: paymentResult.paid ? 'Paid' : 'Pending',
+      }
+
+      setSubmitting(false)
+      finishWithWhatsApp({
+        items,
+        total,
+        customer: paidCustomer,
+        orderId: saveResult.orderId,
+        openedHint:
+          'Payment successful. Tap “Open WhatsApp” to send your paid order.',
+      })
+    } catch (err) {
+      setSubmitting(false)
+      setSaveWarning(
+        `${err.message || 'Payment not completed.'} Order ID: ${String(
+          saveResult.orderId,
+        ).slice(0, 8)}. You can pay later or contact us on WhatsApp.`,
+      )
+      const pendingCustomer = {
+        ...orderCustomer,
+        paymentStatus: 'Pending',
+      }
+      const message = buildOrderMessage({
+        items,
+        total,
+        customer: pendingCustomer,
+        orderId: saveResult.orderId,
+      })
+      setWhatsappLink(buildWhatsAppLink(message))
+    }
+  }
+
+  async function handlePlaceOrder() {
+    if (customer.paymentMethod === 'Razorpay') {
+      await handleRazorpayCheckout()
+      return
+    }
+
+    const validationError = validateCheckout()
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
+    setError('')
+    setSaveWarning('')
+    setWhatsappLink('')
+    setSubmitting(true)
+
+    const paymentStatus =
+      PAYMENT_STATUS_BY_METHOD[customer.paymentMethod] || 'Pending'
+
+    const orderCustomer = {
+      ...customer,
       paymentStatus,
     }
 
-    // Save first, then open WhatsApp with the real URL.
-    // Do NOT open about:blank first — that leaves an empty tab (especially
-    // with noopener, where the handle is null and the blank tab stays).
     let saveResult = { saved: false, error: null, orderId: null }
     try {
       saveResult = await saveOrder({ items, total, customer: orderCustomer })
@@ -140,7 +275,6 @@ export default function CartDrawer({ open, onClose }) {
         resetCheckoutState()
         onClose()
       } else {
-        // Keep cart visible until they tap the fallback link.
         setSaveWarning(
           'Order saved. Tap “Open WhatsApp” below to send the order message.',
         )
@@ -157,6 +291,15 @@ export default function CartDrawer({ open, onClose }) {
   function handleOpenWhatsAppFallback() {
     if (whatsappLink) clearCart()
   }
+
+  const isRazorpay = customer.paymentMethod === 'Razorpay'
+  const primaryLabel = submitting
+    ? isRazorpay
+      ? 'Opening payment…'
+      : 'Placing order…'
+    : isRazorpay
+      ? `Pay ${formatINR(total)} Online`
+      : 'Place Order on WhatsApp'
 
   return (
     <>
@@ -209,19 +352,20 @@ export default function CartDrawer({ open, onClose }) {
                       {formatINR(it.price)} each
                     </p>
                   </div>
-
-                  <div className="flex items-center gap-0.5 rounded-xl border border-gold/20 bg-cream-dark/40 p-0.5">
+                  <div className="flex items-center gap-1 rounded-xl border border-gold/25 bg-cream-dark/40 p-0.5">
                     <button
+                      type="button"
                       onClick={() => decrement(it.id)}
                       className="rounded-lg p-1.5 text-maroon hover:bg-white"
                       aria-label="Decrease"
                     >
                       <MinusIcon />
                     </button>
-                    <span className="w-6 text-center text-sm font-bold">
+                    <span className="w-6 text-center text-sm font-bold text-maroon">
                       {it.quantity}
                     </span>
                     <button
+                      type="button"
                       onClick={() => increment(it.id)}
                       className="rounded-lg p-1.5 text-maroon hover:bg-white"
                       aria-label="Increase"
@@ -229,27 +373,23 @@ export default function CartDrawer({ open, onClose }) {
                       <PlusIcon />
                     </button>
                   </div>
-
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-ink">
-                      {formatINR(it.price * it.quantity)}
-                    </p>
-                    <button
-                      onClick={() => removeItem(it.id)}
-                      className="mt-0.5 text-[10px] text-maroon/70 hover:text-maroon"
-                    >
-                      <TrashIcon className="inline h-3 w-3" /> Remove
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(it.id)}
+                    className="rounded-lg p-1.5 text-ink/40 hover:text-maroon"
+                    aria-label="Remove"
+                  >
+                    <TrashIcon />
+                  </button>
                 </li>
               ))}
             </ul>
           )}
 
           {items.length > 0 && (
-            <div className="mt-6 space-y-4">
+            <div className="mt-6 space-y-3">
               <h3 className="font-heading text-base font-bold text-maroon">
-                Your Details
+                Checkout details
               </h3>
 
               <div>
@@ -321,11 +461,10 @@ export default function CartDrawer({ open, onClose }) {
                 />
               </div>
 
-              {/* Payment method */}
               <div>
                 <span className="label">Payment Method *</span>
                 <div className="space-y-2">
-                  {PAYMENT_METHODS.map((m) => (
+                  {VISIBLE_PAYMENT_METHODS.map((m) => (
                     <button
                       key={m.id}
                       type="button"
@@ -345,10 +484,17 @@ export default function CartDrawer({ open, onClose }) {
                   ))}
                 </div>
 
+                {customer.paymentMethod === 'Razorpay' && (
+                  <p className="mt-2 rounded-xl border border-forest/15 bg-forest/5 px-3 py-2 text-xs text-forest">
+                    Pay securely with UPI, card, or netbanking via Razorpay.
+                    After payment, WhatsApp opens with your paid order details.
+                  </p>
+                )}
+
                 {customer.paymentMethod === 'UPI' && !isUpiConfigured && (
                   <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                    UPI payment is not configured yet. Please choose Pay Later
-                    or WhatsApp.
+                    UPI payment is not configured yet. Please choose another
+                    method.
                   </p>
                 )}
 
@@ -426,10 +572,12 @@ export default function CartDrawer({ open, onClose }) {
             <button
               onClick={handlePlaceOrder}
               disabled={submitting}
-              className="btn-whatsapp w-full py-3.5 text-base"
+              className={`${
+                isRazorpay ? 'btn-primary' : 'btn-whatsapp'
+              } w-full py-3.5 text-base`}
             >
-              <WhatsAppIcon />
-              {submitting ? 'Placing order…' : 'Place Order on WhatsApp'}
+              {!isRazorpay && <WhatsAppIcon />}
+              {primaryLabel}
             </button>
 
             <button

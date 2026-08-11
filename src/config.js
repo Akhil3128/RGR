@@ -19,3 +19,9 @@ export const UPI = {
 
 export const isUpiConfigured =
   Boolean(UPI.id) && UPI.id !== 'ENTER_UPI_ID_HERE'
+
+// Razorpay — only the public Key ID belongs in the frontend.
+// Order creation + signature verification happen in Supabase Edge Functions.
+export const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || ''
+
+export const isRazorpayConfigured = Boolean(String(RAZORPAY_KEY_ID).trim())

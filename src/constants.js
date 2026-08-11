@@ -9,6 +9,7 @@ export const ORDER_STATUSES = [
 ]
 
 export const PAYMENT_METHODS = [
+  { id: 'Razorpay', label: 'Pay Online (Razorpay)' },
   { id: 'UPI', label: 'Pay via UPI' },
   { id: 'Pay Later', label: 'Pay Later / Cash on Delivery' },
   { id: 'WhatsApp', label: 'WhatsApp Order' },
@@ -42,12 +43,14 @@ export const STATUS_COLORS = {
   Partial: 'bg-yellow-100 text-yellow-800',
   Failed: 'bg-red-100 text-red-800',
   UPI: 'bg-forest/10 text-forest',
+  Razorpay: 'bg-indigo-50 text-indigo-800',
   'Pay Later': 'bg-beige text-ink',
   WhatsApp: 'bg-green-50 text-green-800',
 }
 
 // Map payment method → default payment_status when order is placed.
 export const PAYMENT_STATUS_BY_METHOD = {
+  Razorpay: 'Pending',
   UPI: 'Pending Verification',
   'Pay Later': 'Pending',
   WhatsApp: 'Pending',
