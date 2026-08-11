@@ -77,7 +77,7 @@ Built with **React + Vite + Tailwind CSS** on the frontend and **Supabase**
     │   └── whatsapp.js         # Build WhatsApp order message + link
     ├── components/
     │   ├── Navbar.jsx  Hero.jsx  BrandStory.jsx  QualitySection.jsx
-    │   ├── ProductMenu.jsx  ProductCard.jsx  ProductImage.jsx
+    │   ├── ProductMenu.jsx  ProductCard.jsx
     │   ├── CartDrawer.jsx  Footer.jsx  WhatsAppFloat.jsx  icons.jsx
     │   └── admin/
     │       ├── ProtectedRoute.jsx  DashboardStats.jsx
