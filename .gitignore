@@ -12,6 +12,8 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+supabase/.env
+**/.env
 
 # Logs
 logs
