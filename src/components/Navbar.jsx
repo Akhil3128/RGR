@@ -9,8 +9,8 @@ export default function Navbar({ onCartClick }) {
     <header className="sticky top-0 z-30 border-b border-gold/15 bg-cream/90 shadow-soft backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
         <a href="#home" className="group flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-maroon to-maroon-dark text-sm font-bold text-gold shadow-soft transition group-hover:shadow-card sm:h-11 sm:w-11 sm:text-base">
-            RG
+          <span className="flex h-10 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-maroon to-maroon-dark text-[11px] font-bold tracking-wide text-gold shadow-soft transition group-hover:shadow-card sm:h-11 sm:w-12 sm:text-xs">
+            RGR
           </span>
           <span className="leading-tight">
             <span className="block font-heading text-sm font-bold text-maroon sm:text-base">

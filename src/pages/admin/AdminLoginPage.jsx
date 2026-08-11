@@ -40,8 +40,8 @@ export default function AdminLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-maroon px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center text-cream">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-gold text-xl font-bold text-maroon-dark">
-            RG
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-gold text-sm font-bold tracking-wide text-maroon-dark">
+            RGR
           </div>
           <h1 className="font-heading text-2xl font-bold">Admin Login</h1>
           <p className="text-sm text-cream/70">{BUSINESS.name}</p>
