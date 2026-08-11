@@ -76,7 +76,7 @@ export default function ProductMenu() {
             No products available right now. Please check back soon.
           </p>
         ) : (
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+          <div className="mt-8 grid auto-rows-fr grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
             {visible.map((p) => (
               <ProductCard key={p.id || p.name} product={p} />
             ))}

@@ -70,52 +70,39 @@ export default function ProductCard({ product }) {
         </span>
       </div>
 
-      {hasMultiple && (
-        <div className="mt-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-maroon/70">
-            Available Sizes
-          </p>
-          <ul className="mt-1.5 space-y-0.5">
-            {variants.map((variant) => (
-              <li
-                key={variant.id}
-                className={`flex items-center justify-between gap-2 text-xs sm:text-sm ${
-                  variant.id === selected.id
-                    ? 'font-medium text-maroon'
-                    : 'text-ink/70'
-                } ${!variant.is_available ? 'opacity-45 line-through' : ''}`}
-              >
-                <span>{variant.size || 'Standard'}</span>
-                <span>{formatINR(variant.price)}</span>
-              </li>
-            ))}
-          </ul>
+      {/* Reserved slot so single- and multi-variant cards share a similar height */}
+      <div className="mt-2 flex min-h-[4.25rem] flex-col justify-start">
+        {hasMultiple && (
+          <>
+            <label
+              className="mb-1 block text-xs font-medium text-maroon"
+              htmlFor={`weight-${product.id}`}
+            >
+              Select Weight
+            </label>
+            <select
+              id={`weight-${product.id}`}
+              className="input h-11 min-h-[44px] py-0 text-sm leading-none"
+              value={selected.id}
+              onChange={(e) => setSelectedId(e.target.value)}
+              aria-label={`Select weight for ${product.name}`}
+            >
+              {variants.map((variant) => (
+                <option
+                  key={variant.id}
+                  value={variant.id}
+                  disabled={!variant.is_available}
+                >
+                  {variantOptionLabel(variant)}
+                  {!variant.is_available ? ' (Out of stock)' : ''}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+      </div>
 
-          <label className="label mt-3 mb-1 text-xs" htmlFor={`weight-${product.id}`}>
-            Choose Weight
-          </label>
-          <select
-            id={`weight-${product.id}`}
-            className="input py-2 text-sm"
-            value={selected.id}
-            onChange={(e) => setSelectedId(e.target.value)}
-            aria-label={`Choose weight for ${product.name}`}
-          >
-            {variants.map((variant) => (
-              <option
-                key={variant.id}
-                value={variant.id}
-                disabled={!variant.is_available}
-              >
-                {variantOptionLabel(variant)}
-                {!variant.is_available ? ' (Out of stock)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <div className="mt-auto flex items-center justify-between gap-2 border-t border-gold/15 pt-3 mt-3">
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-gold/15 pt-3">
         <span className="font-heading text-lg font-bold text-ink">
           {formatINR(selected.price)}
         </span>
