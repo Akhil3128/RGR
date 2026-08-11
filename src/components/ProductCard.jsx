@@ -62,8 +62,8 @@ export default function ProductCard({ product }) {
 
   return (
     <article className="product-card group flex h-full flex-col overflow-hidden rounded-[1.25rem] border border-gold/20 bg-white shadow-soft transition-all duration-200 hover:-translate-y-1 hover:shadow-card">
-      <div className="relative h-44 shrink-0 overflow-hidden bg-gradient-to-b from-cream to-cream-dark/80 sm:h-48 md:h-[200px]">
-        {showImage ? (
+      {showImage && (
+        <div className="relative h-44 shrink-0 overflow-hidden sm:h-48 md:h-[200px]">
           <img
             src={imageSrc}
             alt={product.name}
@@ -71,15 +71,8 @@ export default function ProductCard({ product }) {
             loading="lazy"
             onError={() => setImageFailed(true)}
           />
-        ) : (
-          <div
-            className="flex h-full w-full items-center justify-center"
-            aria-hidden="true"
-          >
-            <div className="h-16 w-16 rounded-full border border-gold/20 bg-white/40" />
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="flex flex-1 flex-col p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
